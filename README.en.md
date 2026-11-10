@@ -18,7 +18,14 @@ Import local Codex projects and conversations into **native Harness sessions**, 
 - Reuse valid original working directories; fall back to a dedicated import directory otherwise.
 - Confirmed cleanup limited to proven imported copies, with a choice to retain continued conversations.
 
-## Install from source
+## Download and install
+
+**[⬇ Download plugin v0.11.0](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)** · [All releases and checksums](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases)
+
+Download `dsh-plugin-codex-import-0.11.0.tgz` from the release **Assets**. GitHub's automatic Source code archives are source snapshots, not installable plugin packages. Prebuilt downloads do not require a local Node.js installation or source build; Harness Desktop supplies its runtime.
+
+<details>
+<summary>Developers: build from source</summary>
 
 This project has not been published to npm. Use Node.js 24.9+ to build an installable tarball:
 
@@ -28,6 +35,8 @@ cd dsh-plugin-codex-import
 npm ci
 npm pack
 ```
+
+</details>
 
 In Harness, open **Plugins → Install third-party plugin** and supply the absolute path:
 

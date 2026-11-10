@@ -8,6 +8,8 @@
 
 ## 安装到 Harness 桌面版
 
+先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.11.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
+
 1. 打开左侧「插件」，点击「添加插件」旁的菜单，选择「安装第三方插件」。
 2. 在安装来源中输入本插件安装包的绝对路径。使用 npm 文件 spec 可以保留路径中的空格，例如：
 

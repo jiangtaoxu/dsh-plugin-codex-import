@@ -27,3 +27,14 @@ npm pack --dry-run
 - 新数据格式或同步修复应有临时、合成数据的回归测试，不提交真实用户历史。
 
 PR 请说明具体问题、行为变化、验证结果与兼容性影响。较大行为调整建议先开 Issue 讨论。项目默认使用 MIT 许可证。
+
+## 发布版本
+
+更新 `package.json`、`package-lock.json`、`CHANGELOG.md` 及文档中的版本和下载链接，完成测试并提交推送。然后创建与 package 版本一致的附注标签，例如：
+
+```sh
+git tag -a v0.11.0 -m '发布 0.11.0：增量同步与长消息折叠'
+git push origin v0.11.0
+```
+
+`Release` 工作流会重新安装依赖、构建、检查和测试；成功后运行 `npm pack`，向 GitHub Release 上传 `.tgz` 与 `SHA256SUMS`。标签必须与 package 版本完全一致。已发布的版本不要覆盖标签或替换安装包，修订应递增版本后发布。

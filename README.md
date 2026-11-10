@@ -15,6 +15,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz"><strong>下载插件 v0.11.0</strong></a> · <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest">最新发布</a><br />
   简体中文 · <a href="README.en.md">English</a> · <a href="docs/USAGE.md">使用手册</a> · <a href="CHANGELOG.md">更新日志</a> · <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/issues">反馈问题</a>
 </p>
 
@@ -43,7 +44,16 @@
 
 ### 1. 获取安装包
 
-需要 **Node.js 24.9+**；当前适配 **Harness 0.2.2-rc.1**。建议先备份 Harness 数据，并先选一条会话验证。其他 Harness 版本需重新验证 API 兼容性。
+当前适配 **Harness 0.2.2-rc.1**（运行时 Node.js 24.9+）。下载预构建插件无需自行安装 Node.js 或编译源码；Harness 桌面版自带运行时。建议先备份 Harness 数据，并先选一条会话验证。其他 Harness 版本需重新验证 API 兼容性。
+
+**[⬇ 下载插件 v0.11.0](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)** · [所有版本与校验文件](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases)
+
+在 Release 的 **Assets** 中下载 `dsh-plugin-codex-import-0.11.0.tgz`。自动生成的 `Source code (zip/tar.gz)` 是源码归档，不是安装包。
+
+<details>
+<summary>开发者：从源码构建</summary>
+
+使用 Node.js 24.9+：
 
 ```sh
 git clone https://github.com/jiangtaoxu/dsh-plugin-codex-import.git
@@ -52,7 +62,9 @@ npm ci
 npm pack
 ```
 
-将生成 `dsh-plugin-codex-import-0.11.0.tgz`。这是本地构建流程，不要求 npm 账号；本项目尚未发布到 npm。
+将生成 `dsh-plugin-codex-import-0.11.0.tgz`。不要求 npm 账号；本项目尚未发布到 npm。
+
+</details>
 
 ### 2. 安装到 Harness
 
