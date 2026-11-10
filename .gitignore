@@ -1,0 +1,13 @@
+node_modules
+node_modules/
+*.tgz
+.test-output/
+
+.DS_Store
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+# Local-only diagnostic history; public verification is in docs/TESTING.md.
+VERIFICATION.md

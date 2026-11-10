@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Import</title>
+  <desc id="desc">Local conversations, carried forward. Preview, confirm and sync into DeepSeek Harness.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#111827"/><stop offset="1" stop-color="#172554"/></linearGradient>
+    <linearGradient id="accent"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#38bdf8"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#a5b4fc" stroke-opacity=".06"/></pattern>
+  </defs>
+  <rect width="1280" height="400" rx="24" fill="url(#bg)"/>
+  <rect width="1280" height="400" rx="24" fill="url(#grid)"/>
+  <circle cx="1165" cy="64" r="180" fill="#6366f1" fill-opacity=".1"/>
+  <rect x="64" y="58" width="220" height="32" rx="16" fill="#818cf8" fill-opacity=".12" stroke="#818cf8" stroke-opacity=".3"/>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">
+    <text x="82" y="79" fill="#c7d2fe" font-size="13" letter-spacing="2">HARNESS COMMUNITY PLUGIN</text>
+    <text x="64" y="165" fill="#f8fafc" font-size="68" font-weight="700" letter-spacing="-2">Codex Import</text>
+    <text x="67" y="211" fill="#cbd5e1" font-size="23">Local conversations, carried forward.</text>
+    <text x="67" y="253" fill="#94a3b8" font-size="17">Preview. Confirm. Sync. Keep your conversations.</text>
+    <g transform="translate(67 303)">
+      <rect width="130" height="36" rx="18" fill="#ffffff" fill-opacity=".06"/><text x="22" y="24" fill="#c7d2fe" font-size="14">LOCAL FIRST</text>
+      <rect x="142" width="174" height="36" rx="18" fill="#ffffff" fill-opacity=".06"/><text x="163" y="24" fill="#c7d2fe" font-size="14">INCREMENTAL SYNC</text>
+      <rect x="328" width="118" height="36" rx="18" fill="#ffffff" fill-opacity=".06"/><text x="355" y="24" fill="#c7d2fe" font-size="14">MIT LICENSE</text>
+    </g>
+    <g transform="translate(790 84)">
+      <rect width="360" height="236" rx="20" fill="#0f172a" stroke="#475569"/>
+      <circle cx="23" cy="25" r="4" fill="#818cf8"/><circle cx="38" cy="25" r="4" fill="#475569"/><circle cx="53" cy="25" r="4" fill="#475569"/>
+      <text x="24" y="72" fill="#94a3b8" font-size="13" letter-spacing="2">CODEX → HARNESS</text>
+      <rect x="24" y="94" width="312" height="40" rx="8" fill="#1e293b"/>
+      <path d="M39 111h12m-12 6h8" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+      <text x="66" y="119" fill="#e2e8f0" font-size="15">Projects &amp; conversation history</text>
+      <rect x="24" y="146" width="312" height="40" rx="8" fill="#1e293b"/>
+      <path d="m39 166 4 4 8-9" stroke="#34d399" fill="none" stroke-width="2" stroke-linecap="round"/>
+      <text x="66" y="171" fill="#e2e8f0" font-size="15">Continued chats stay intact</text>
+      <rect x="24" y="204" width="312" height="3" rx="1.5" fill="url(#accent)"/>
+    </g>
+  </g>
+</svg>

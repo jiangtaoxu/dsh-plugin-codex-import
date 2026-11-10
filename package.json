@@ -1,0 +1,102 @@
+{
+  "name": "dsh-plugin-codex-import",
+  "version": "0.11.0",
+  "description": "Import and incrementally sync local Codex conversations into DeepSeek Harness, preserving continued chats and attachments",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./lib/client.js",
+    "./source": "./src/source.js",
+    "./importer": "./src/importer.js"
+  },
+  "files": [
+    "src",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "README.en.md",
+    "docs",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "prepack": "npm run build",
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/index.js && node --check src/source.js && node --check src/convert.js && node --check src/destinations.js && node --check src/sync.js && node --check src/long-messages.js && node --check src/importer.js && node --check src/recovery.js && node --check src/cleanup.js && node --check src/zstd.js && node --check src/jsonl.js && node --check src/import-plans.js && node --check src/jobs.js && node --check src/client.js && node --check lib/client.js && node --check src/catalog.js && node --check src/identity.js && node --check src/sidebar.js && node --check src/presentation.js && node --check src/attachment-audit.js && node --check src/attachment-details.js && node --check src/media.js && node --check src/question-replies.js"
+  },
+  "engines": {
+    "node": ">=24.9.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-commands",
+        "@deepseek-ai/dsh-api-job-controller",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-attachment",
+        "@deepseek-ai/dsh-api-workspace-controller"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-persistence": "0.2.2-rc.1",
+    "@deepseek-ai/node-addon-system": "~0.1.2"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.19.0",
+    "@deepseek-ai/dsh-session-format-v3-to-v4": "0.2.2-rc.1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-persistence": "0.2.2-rc.1",
+    "@deepseek-ai/node-addon-system": "0.1.2",
+    "@deepseek-ai/dsh-jobs-local": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-persistence-jsonl": "0.2.2-rc.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "jsdom": "26.1.0",
+    "@deepseek-ai/dsh-session-projection-cache": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-projection": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-storage": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-storage-json": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-attachment-local": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiangtaoxu/dsh-plugin-codex-import.git"
+  },
+  "homepage": "https://github.com/jiangtaoxu/dsh-plugin-codex-import#readme",
+  "bugs": {
+    "url": "https://github.com/jiangtaoxu/dsh-plugin-codex-import/issues"
+  },
+  "author": "jiangtaoxu",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "codex",
+    "conversation-import",
+    "incremental-sync"
+  ],
+  "overrides": {
+    "zod": "4.6.6"
+  }
+}

@@ -1,0 +1,15 @@
+name: 功能建议 / Feature request
+description: 描述使用场景和期望行为。
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景 / Use case
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 希望如何工作 / Proposed behavior
+    validations:
+      required: true

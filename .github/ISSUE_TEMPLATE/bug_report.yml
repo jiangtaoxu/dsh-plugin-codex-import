@@ -1,0 +1,30 @@
+name: 问题反馈 / Bug report
+description: 提交可复现的问题，请勿附带真实对话、凭据或私人文件。
+body:
+  - type: markdown
+    attributes:
+      value: 请先阅读 README 与使用手册。所有日志、路径和截图请脱敏；不要上传完整 .codex 或 .dsh 目录。
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境 / Environment
+      description: Harness、插件、Node.js 与操作系统版本。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 预期与实际结果 / Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: 合成或脱敏样例 / Sanitized sample
+      description: 可选；仅提供必要的格式样例和错误信息。
