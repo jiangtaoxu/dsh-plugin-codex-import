@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-codex-import",
-  "version": "0.11.0",
+  "version": "0.12.0-dev.0",
   "description": "Import and incrementally sync local Codex conversations into DeepSeek Harness, preserving continued chats and attachments",
   "type": "module",
   "license": "MIT",
@@ -9,7 +9,8 @@
     ".": "./src/index.js",
     "./client": "./lib/client.js",
     "./source": "./src/source.js",
-    "./importer": "./src/importer.js"
+    "./importer": "./src/importer.js",
+    "./chatgpt-source": "./src/chatgpt-source.js"
   },
   "files": [
     "src",
@@ -18,6 +19,7 @@
     "README.md",
     "LICENSE",
     "README.en.md",
+    "scripts/audit-chatgpt.mjs",
     "docs",
     "CHANGELOG.md"
   ],
@@ -25,7 +27,8 @@
     "build": "node scripts/build-client.mjs",
     "prepack": "npm run build",
     "test": "node --test test/*.test.js",
-    "check": "node --check src/index.js && node --check src/source.js && node --check src/convert.js && node --check src/destinations.js && node --check src/sync.js && node --check src/long-messages.js && node --check src/importer.js && node --check src/recovery.js && node --check src/cleanup.js && node --check src/zstd.js && node --check src/jsonl.js && node --check src/import-plans.js && node --check src/jobs.js && node --check src/client.js && node --check lib/client.js && node --check src/catalog.js && node --check src/identity.js && node --check src/sidebar.js && node --check src/presentation.js && node --check src/attachment-audit.js && node --check src/attachment-details.js && node --check src/media.js && node --check src/question-replies.js"
+    "check": "node --check src/index.js && node --check src/source.js && node --check src/convert.js && node --check src/destinations.js && node --check src/sync.js && node --check src/long-messages.js && node --check src/importer.js && node --check src/recovery.js && node --check src/cleanup.js && node --check src/zstd.js && node --check src/jsonl.js && node --check src/import-plans.js && node --check src/jobs.js && node --check src/client.js && node --check lib/client.js && node --check src/catalog.js && node --check src/identity.js && node --check src/sidebar.js && node --check src/presentation.js && node --check src/attachment-audit.js && node --check src/attachment-details.js && node --check src/media.js && node --check src/question-replies.js && node --check src/archive.js && node --check src/chatgpt-source.js && node --check src/chatgpt-media.js && node --check src/overlap.js && node --check scripts/audit-chatgpt.mjs",
+    "audit:chatgpt": "node scripts/audit-chatgpt.mjs"
   },
   "engines": {
     "node": ">=24.9.0",
@@ -60,7 +63,8 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.19.0",
-    "@deepseek-ai/dsh-session-format-v3-to-v4": "0.2.2-rc.1"
+    "@deepseek-ai/dsh-session-format-v3-to-v4": "0.2.2-rc.1",
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.1.0",

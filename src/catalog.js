@@ -41,10 +41,11 @@ export async function readImportedCatalog(snapshot, cache, signal, warmCache) {
     else cache.coldSnapshot(snapshot.header, 0, events);
   }
   const metadata = latestSync?.metadata || source.metadata || {};
+  const chatgpt = source.kind === 'chatgpt';
   const projectPath = metadata.project?.path || metadata.project?.cwd || metadata.cwd || '';
-  const projectTitle = metadata.project?.title || metadata.project?.name || (projectPath ? basename(projectPath) : '未关联项目');
-  return { id: header.id, threadId: source.threadId, title: title?.trim() || metadata.title?.trim() || `Codex ${source.threadId}`,
-    projectKey: projectPath || metadata.project?.id || '__unassigned', projectTitle, projectPath,
+  const projectTitle = chatgpt ? 'ChatGPT 导入' : metadata.project?.title || metadata.project?.name || (projectPath ? basename(projectPath) : '未关联项目');
+  return { id: header.id, threadId: source.threadId, sourceKind: chatgpt ? 'chatgpt' : 'codex', title: title?.trim() || metadata.title?.trim() || `${chatgpt ? 'ChatGPT' : 'Codex'} ${source.threadId}`,
+    projectKey: chatgpt ? source.sourceId : projectPath || metadata.project?.id || '__unassigned', projectTitle, projectPath,
     originalCwd: metadata.cwd || '', attachmentImages: (latestSync?.attachments || source.attachments)?.images || 0, attachmentFiles: (latestSync?.attachments || source.attachments)?.files || 0, attachmentMissing: (latestSync?.attachments || source.attachments)?.missing || 0, createdAt: header.createdAt, updatedAt: time, metadataOnly: (latestSync?.mode || source.mode) === 'metadata-only' };
 }
 

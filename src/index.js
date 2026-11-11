@@ -6,10 +6,15 @@ import { CleanupPlans, deleteImported } from './cleanup.js';
 import { ImportCatalog, installCatalogRoute, warmNativeCache } from './catalog.js';
 import { AttachmentAudits, installAttachmentAuditRoute } from './attachment-audit.js';
 import { ImportPlans } from './import-plans.js';
+import { IMPORT_ID } from './identity.js';
 
 export const name = 'codex-import';
 export const inject = ['commands', 'sessionPersistence', 'workspaceRegistry', 'jobs', 'agents', 'sessions', 'sessionProjectionCache', 'sessionTitle', 'connection', 'attachments'];
 export const Config = z.object({
+  source: z.union([z.const('codex'), z.const('chatgpt')]).description('导入来源：Codex 本地历史或 ChatGPT 导出包').default('codex'),
+  archivePath: z.string().description('ChatGPT 导出的 ZIP 或解压目录绝对路径').default(''),
+  sourceId: z.string().description('可选的稳定来源标识；缺少账户 ID 的导出必须填写，后续保持一致').default(''),
+  checkOverlap: z.boolean().description('ChatGPT 预览时只读检查 dsh 现有会话的内容重合，不自动合并').default(true),
   codexHome: z.string().description('Codex 数据目录；留空使用 CODEX_HOME 或 ~/.codex').default(''),
   includeArchived: z.boolean().description('包含已归档的 Codex 会话').default(true),
   syncExisting: z.boolean().description('增量同步同目录的已有导入副本，保留 Harness 续聊；关闭则使用独立快照模式').default(true),
@@ -63,7 +68,7 @@ export function apply(ctx, config = {}) {
   });
   ctx.commands.register({
     name: 'codex-import',
-    description: '本机 Codex 聊天：preview / sync 预览后确认增量导入 / run 预览 / delete 清理副本',
+    description: 'Codex / ChatGPT 聊天：preview / sync 预览后确认增量导入 / run 预览 / delete 清理副本',
     input: { hint: 'preview | sync | run [JSON 选项] | status | cancel | delete' },
     recordInput: false,
     async handler({ rawInput, signal, agent }) {
@@ -93,7 +98,7 @@ export function apply(ctx, config = {}) {
       } catch (error) { return { kind: 'error', text: `导入选项无效：${error.message}` }; }
       if (match[1] === 'delete' || match[1] === 'delete-confirm') {
         try {
-          if (/^codex-(?:[a-f0-9]{24}-[a-f0-9]{24}|recovered-[a-f0-9]{24})$/.test(agent.session.id)) {
+          if (IMPORT_ID.test(agent.session.id)) {
             return { kind: 'error', text: '请新建一个 Harness 会话后执行 /codex-import delete，避免清理命令写入正在删除的导入副本。尚未删除任何内容。' };
           }
           if (match[1] === 'delete') return launch(
@@ -125,12 +130,13 @@ export function apply(ctx, config = {}) {
 
 function validateOptions(options) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) throw new Error('选项必须是 JSON 对象');
-  const allowed = new Set(['codexHome', 'cwd', 'threadIds', 'includeArchived', 'preserveArchive',
+  const allowed = new Set(['source', 'archivePath', 'sourceId', 'checkOverlap', 'codexHome', 'cwd', 'threadIds', 'includeArchived', 'preserveArchive',
     'groupByProject', 'importWorkspacePath', 'workspaceTitle', 'importAttachments', 'maxAttachmentBytes', 'syncExisting']);
   for (const [key, value] of Object.entries(options)) {
     if (!allowed.has(key)) throw new Error(`未知选项 ${key}`);
-    if (['codexHome', 'cwd', 'importWorkspacePath', 'workspaceTitle'].includes(key) && typeof value !== 'string') throw new Error(`${key} 必须是字符串`);
-    if (['includeArchived', 'preserveArchive', 'groupByProject', 'importAttachments', 'syncExisting'].includes(key) && typeof value !== 'boolean') throw new Error(`${key} 必须是布尔值`);
+    if (['source', 'archivePath', 'sourceId', 'codexHome', 'cwd', 'importWorkspacePath', 'workspaceTitle'].includes(key) && typeof value !== 'string') throw new Error(`${key} 必须是字符串`);
+    if (key === 'source' && !['codex', 'chatgpt'].includes(value)) throw new Error('source 必须为 codex 或 chatgpt');
+    if (['checkOverlap', 'includeArchived', 'preserveArchive', 'groupByProject', 'importAttachments', 'syncExisting'].includes(key) && typeof value !== 'boolean') throw new Error(`${key} 必须是布尔值`);
     if (key === 'maxAttachmentBytes' && (!Number.isSafeInteger(value) || value < 1)) throw new Error('maxAttachmentBytes 必须是正整数');
     if (key === 'threadIds' && (!Array.isArray(value) || value.some(id => typeof id !== 'string' || !id))) {
       throw new Error('threadIds 必须是非空字符串组成的数组');

@@ -16,6 +16,8 @@ npm pack --dry-run
 
 0.11.0 在 macOS 的 Electron / Node 24.21 环境中 **109 项测试通过**。测试使用临时目录、合成对话和真正的 Harness JSONL/Zstandard 持久化服务；前端交互使用 React 与 jsdom。不调用模型 API，也不导入开发者的真实会话到测试目录。
 
+当前开发版在 Node.js 24.14.1 下 **120 项测试通过**，增加 ChatGPT 测试：ZIP/目录、manifest 分片、父节点分支、思考与摘要、原生附件、未知与隐藏内容、来源隐私、归档改名去重、确认摘要校验、命令确认、跨来源内容重合提示、首次导入与增量中断恢复。真实导出包另作显式只读检查，验证完整预览及所有会话的原生事件约束；不写入用户的 dsh 数据。
+
 | 范围 | 验证内容 |
 | --- | --- |
 | 来源读取 | SQLite、JSONL、无正文索引、孤立历史、WAL 与元数据 |
@@ -58,3 +60,11 @@ node test/verify-local.mjs /absolute/path/to/.codex
 ```
 
 它属于显式本机诊断，不在 `npm test` 或 CI 默认流程中运行。
+
+ChatGPT 导出与本机数据的只读重合诊断：
+
+```sh
+npm run audit:chatgpt -- /absolute/path/export.zip
+```
+
+结果为统计、匹配 ID 与错误；不输出正文或账户资料。仅精确文本和来源 ID 匹配，不进行语义相似搜索，也不据此自动合并会话。

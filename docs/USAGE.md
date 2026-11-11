@@ -6,6 +6,39 @@
 
 支持 **DeepSeek Harness 0.2.2-rc.1**，包括当前桌面版；Node.js 需要 **24.9 或以上**。Harness 的 API 尚未稳定，本插件锁定此版本的会话服务，升级 Harness 后应重新验证兼容性。
 
+## ChatGPT 导出包导入
+
+当前源码支持 ZIP 和解压后的目录，使用相同的预览与确认流程（v0.11.0 发布包尚不包含此功能）：
+
+从当前源码运行 `npm ci`、`npm pack`，会生成 `dsh-plugin-codex-import-0.12.0-dev.0.tgz` 开发包，使用下方的第三方插件安装方式安装该开发包。
+
+```text
+/codex-import preview {"source":"chatgpt","archivePath":"/absolute/path/export.zip"}
+```
+
+也可指定 `archivePath` 为解压目录，使用 `threadIds` 筛选原对话 ID，或设置 `importAttachments:false`。默认放入 `$DSH_HOME/imports/chatgpt`，工作区名称「ChatGPT 导入」，不推断本地项目目录。Codex 的默认入口和原项目分组规则保持兼容。
+
+- 优先读取 `export_manifest.json` 的对话分片清单，同时支持 `conversations.json` 和 `conversations-*.json`；逐片读取，不将整个 ZIP 解压到磁盘。
+- 从 `current_node` 沿 `parent` 还原当前路径，保留消息顺序。其他分支节点保存在可忽略的原始事件中，不加入默认续聊上下文；暂不提供分支切换或每个分支单独导入。
+- 文本、图文和音频转写转为原生消息；导出中已有的思考和摘要转为 reasoning。系统和工具历史作为普通历史记录展示，不执行。未知内容保留原始描述。
+- 联合附件指针、文件名映射和文件库元数据匹配 ZIP 内文件。`.dat` 按文件头识别图片、WAV 和 PDF；可恢复图片写入原生图片存储，音频和其他文件保存为文件附件。暂不提供专用音频播放器或转写服务。
+- 缺失、损坏或超限的附件保留占位与原因，不从远程下载。文件库中未关联到当前路径的文件不单独导入。Pages、Sites、群聊列为未处理内容，不转换为个人会话。
+- ZIP 限制为 50,000 个文件、合计 4 GiB 解压内容；单个 JSON 文件最多 256 MiB，附件受 `maxAttachmentBytes`（默认 100 MiB）和 Harness 自身限制。拒绝路径穿越、符号链接、加密 ZIP、重复成员和 CRC 损坏。
+
+**重复导入与重合处理：** 默认以 `user.json` 的账户 ID 摘要、原会话 ID 和目标目录识别来源；ZIP 改名、移动或重新导出不会改变同源身份。相同内容跳过，新增和修订追加到原副本，保留 dsh 续聊，源端减少的内容不从 dsh 删除。更换目标目录仍属于不同副本范围。缺少账户 ID 时必须显式提供稳定的 `sourceId`，同一账户后续保持一致；显式更换 `sourceId` 会创建独立来源。
+
+ChatGPT 预览默认只读扫描 dsh 当前会话，提示相同文本序列和相同长消息（至少 80 字符）。内容相同不证明来源相同，跨来源不自动合并、覆盖或跳过；只有来源身份相同才走增量同步。`checkOverlap:false` 可关闭内容扫描。该扫描不作语义相似判断，不是完整的附件或分支等价证明。无法读取的会话会显示警告。
+
+ChatGPT 确认计划同时锁定导出包内容摘要；预览后导出包发生变化，需要重新预览。此规则比 Codex 本地持续更新日志的确认规则更严格。
+
+开发者可对导出包和本机 Codex / dsh 做独立的只读重合检查：
+
+```sh
+npm run audit:chatgpt -- /absolute/path/export.zip
+```
+
+默认检查 `CODEX_HOME`、`~/.codex` 和 `$DSH_HOME`（默认 `~/.dsh`）；可重复指定 `--codex-home /path`，并通过 `--dsh-home /path` 或 `--source-id stable-id` 覆盖。结果只输出统计、匹配 ID 和读取错误，不输出对话正文。读取本地 SQLite 消息，缺少正文时回退到已索引的 JSONL；dsh 每条会话只读取最新日志版本，避免将迁移备份重复计数。检查过程不修改会话，不执行导入。
+
 ## 安装到 Harness 桌面版
 
 先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.11.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。

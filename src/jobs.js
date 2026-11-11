@@ -31,6 +31,8 @@ export function startImportJob(ctx, services, options, lifetime, onSettled, oper
           attachmentFiles: report.attachmentFiles || 0, attachmentMissing: report.attachmentMissing || 0,
           ...(report.destinationSummary ? { destinationSummary: report.destinationSummary } : {}),
           ...(report.attachmentAudit ? { attachmentAudit: report.attachmentAudit } : {}),
+          ...(report.sourceSummary ? { sourceKind: report.sourceKind, sourceSummary: report.sourceSummary } : {}),
+          ...(report.overlap ? { overlap: report.overlap } : {}),
           ...(report.importProposal ? { importProposal: report.importProposal } : {}),
           ...(report.proposal ? { proposal: report.proposal } : {}),
           ...(report.deleted !== undefined ? { deleted: report.deleted, preserved: report.preserved, found: report.found } : {}),

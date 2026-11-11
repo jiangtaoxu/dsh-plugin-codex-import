@@ -49,7 +49,7 @@ export function CodexSidebar({ wide = true, expandSidebar, loadCatalog, sessionS
   const toggle = key => setExpanded(old => { const next = new Set(old); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   if (!wide) return sh('button', { type: 'button', onClick: expandSidebar, 'aria-label': '展开 Codex 导入目录' }, '▤');
   const importedRow = row => sh('button', { type: 'button', key: row.id, className: `codex-sidebar-session${current === row.id ? ' is-current' : ''}`,
-    title: `${row.title}\n原项目：${row.originalCwd || row.projectPath}\nCodex ID：${row.threadId}`, onClick: () => open(row.id) },
+    title: `${row.title}\n原项目：${row.originalCwd || row.projectPath}\n${row.sourceKind === 'chatgpt' ? 'ChatGPT' : 'Codex'} ID：${row.threadId}`, onClick: () => open(row.id) },
   sh('span', null, row.title), row.archived && sh('small', null, '已归档'), row.metadataOnly && sh('small', null, '仅索引'));
   const normalRows = ids => ids.flatMap(id => {
     const row = sessions.byId[id];
@@ -65,7 +65,7 @@ export function CodexSidebar({ wide = true, expandSidebar, loadCatalog, sessionS
     sh('input', { type: 'search', value: query, onChange: e => setQuery(e.target.value), placeholder: '搜索对话或项目', 'aria-label': '搜索侧栏全部对话与项目' }),
     sh('div', { className: 'codex-sidebar-body' },
       sh('button', { type: 'button', className: 'codex-sidebar-folder codex-sidebar-root', onClick: () => setRootOpen(!rootOpen), 'aria-expanded': rootOpen || !!query },
-        `${rootOpen || query ? '▾' : '▸'} 📁 Codex 导入目录`, sh('small', null, catalog.loading && !catalog.items.length ? '读取中' : imported.length)),
+        `${rootOpen || query ? '▾' : '▸'} 📁 ${catalog.items.some(row => row.sourceKind === 'chatgpt') ? 'Codex / ChatGPT' : 'Codex'} 导入目录`, sh('small', null, catalog.loading && !catalog.items.length ? '读取中' : imported.length)),
       (rootOpen || !!query) && sh('div', { className: 'codex-sidebar-imports', 'aria-label': 'Codex 导入项目列表' },
         sh('select', { value: archive, onChange: e => setArchive(e.target.value), 'aria-label': '侧栏导入归档筛选' },
           sh('option', { value: 'all' }, '全部导入对话'), sh('option', { value: 'active' }, '未归档'), sh('option', { value: 'archived' }, '已归档')),

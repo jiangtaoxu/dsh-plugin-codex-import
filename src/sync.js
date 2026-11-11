@@ -1,11 +1,11 @@
 import { validateStoredEvents } from '@deepseek-ai/dsh-session-persistence';
 import { digest } from './source.js';
 import { convertSnapshot, projectedRecords } from './convert.js';
-import { isImportedIdentity, IMPORT_ID } from './identity.js';
+import { isImportedIdentity, IMPORT_ID, sessionPrefix, sourceKey, sourceLabel } from './identity.js';
 
 const projectionHash = projected => projected ? digest({ role: projected.role, content: projected.content }) : null;
 const rawRows = snapshot => [
-  ...snapshot.records.map(record => ({ storage: 'sqlite', ...record })),
+  ...snapshot.records.map(record => ({ storage: snapshot.mode === 'chatgpt' ? 'chatgpt' : 'sqlite', ...record })),
   ...snapshot.supplemental.map(record => ({ storage: 'jsonl', ...record })),
 ];
 const rowKey = row => `${row.storage}:${row.key}`;
@@ -53,9 +53,9 @@ export class SyncIndex {
     return new SyncIndex(services, home, headers.filter(row => IMPORT_ID.test(row.header.id)), targets);
   }
   async select(snapshot, signal) {
-    const prefix = `codex-${digest([this.home, snapshot.thread.id, snapshot.destinationCwd ?? snapshot.thread.cwd ?? null]).slice(0, 24)}-`;
+    const prefix = sessionPrefix(this.home, snapshot.thread.id, snapshot.destinationCwd ?? snapshot.thread.cwd);
     const expected = this.targets?.[snapshot.thread.id];
-    const choices = this.headers.filter(row => row.header.id.startsWith(prefix) || row.header.id.startsWith('codex-recovered-'));
+    const choices = this.headers.filter(row => row.header.id.startsWith(prefix) || /^(?:codex|chatgpt)-recovered-/.test(row.header.id));
     let best, broken;
     if (typeof expected === 'string' && !choices.some(row => row.header.id === expected)) throw new Error('预览中的同步副本已不存在，请重新预览');
     for (const row of choices) {
@@ -66,7 +66,7 @@ export class SyncIndex {
         const events = (await reader.read()).events;
         const state = importedState(row.header, events);
         if (!state && row.header.id.startsWith(prefix) && row.header.id !== prefix + snapshot.fingerprint.slice(0, 24)) broken = new Error('已有副本尚未完成导入，已保留，请先恢复原导入');
-        if (!state || state.source.codexHome !== this.home || state.source.threadId !== snapshot.thread.id
+        if (!state || sourceKey(state.source) !== this.home || state.source.threadId !== snapshot.thread.id
           || (state.source.destinationCwd ?? state.source.metadata.cwd) !== snapshot.destinationCwd) continue;
         const score = [state.syncAt ? 1 : 0, state.continued ? 1 : 0, state.fingerprint === snapshot.fingerprint ? 1 : 0,
           state.source.attachmentFormat || 0, state.syncAt || events.reduce((time, e) => e.type === 'user/message' ? Math.max(time, e.time) : time, 0), state.manifest.length];
@@ -110,11 +110,11 @@ export function buildSyncTransaction(header, events, snapshot, version) {
   let openTurn = false;
   for (const e of events) { if (e.type === 'turn/start') openTurn = true; else if (e.type === 'turn/end') openTurn = false; }
   if (openTurn) throw new Error('目标会话有未结束的轮次，已保留，结束或恢复该轮次后重试同步');
-  const selected = projectedRecords(snapshot).filter(({ record }) => diff.changed.has(`${snapshot.mode === 'sqlite' ? 'sqlite' : 'jsonl'}:${record.key}`));
+  const selected = projectedRecords(snapshot).filter(({ record }) => diff.changed.has(`${snapshot.mode === 'chatgpt' ? 'chatgpt' : snapshot.mode === 'sqlite' ? 'sqlite' : 'jsonl'}:${record.key}`));
   const entries = selected.map(({ record, projected }) => ({ record: { ...record, key: `sync:${events.length}:${record.key}:${digest(record.item).slice(0, 20)}` }, projected: snapshot.mediaMessages?.get(record.key) || projected }));
   const now = Date.now();
   if (diff.added || diff.revised || diff.deleted) entries.unshift({ record: { key: `sync-notice:${events.length}:${snapshot.fingerprint}`, time: now }, projected: { role: 'assistant', content: [{ type: 'text', text:
-    `【Codex 增量同步】新增 ${diff.added} 条消息，修订 ${diff.revised} 条；源端减少 ${diff.deleted} 条记录。以下为此次新增/修订的内容，按同步时间追加；原有历史和 Harness 续聊均保留。修订消息作为新版本追加，源端删除不会删除 Harness 中的历史。` }] } });
+    `【${sourceLabel(snapshot)} 增量同步】新增 ${diff.added} 条消息，修订 ${diff.revised} 条；源端减少 ${diff.deleted} 条记录。以下为此次新增/修订的内容，按同步时间追加；原有历史和 Harness 续聊均保留。修订消息作为新版本追加，源端删除不会删除 Harness 中的历史。` }] } });
   const converted = convertSnapshot('', { ...snapshot, records: [], supplemental: [], targetSessionId: header.id, projectedEntries: entries, suppressHead: true, skipLocationNotice: true }, version);
   const offsetTurn = events.reduce((turn, e) => Math.max(turn, Number(e.data?.turn) || 0), 0);
   const body = [];

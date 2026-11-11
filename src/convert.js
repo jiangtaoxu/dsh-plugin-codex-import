@@ -1,4 +1,6 @@
 import { digest } from './source.js';
+import { chatGPTRecords } from './chatgpt-source.js';
+import { sessionPrefix, sourceLabel } from './identity.js';
 
 const text = value => ({ type: 'text', text: value });
 const json = value => JSON.stringify(value, null, 2);
@@ -64,6 +66,7 @@ function legacyItems(records) {
 
 /** Shared projection order for native conversion and attachment admission. */
 export function projectedRecords(snapshot) {
+  if (snapshot.mode === 'chatgpt') return chatGPTRecords(snapshot);
   if (snapshot.mode === 'sqlite') return snapshot.records.map(record => ({ record, projected: projectItem(record.item) }));
   if (snapshot.mode === 'jsonl') return legacyItems(snapshot.supplemental).map(record => ({ record, projected: record.projected }));
   return [];
@@ -71,11 +74,12 @@ export function projectedRecords(snapshot) {
 
 /** Stable namespace plus content digest: reruns never overwrite a resumed chat. */
 export function sessionIdFor(home, snapshot) {
-  return `codex-${digest([home, snapshot.thread.id, snapshot.destinationCwd ?? snapshot.thread.cwd ?? null]).slice(0, 24)}-${snapshot.fingerprint.slice(0, 24)}`;
+  return sessionPrefix(home, snapshot.thread.id, snapshot.destinationCwd ?? snapshot.thread.cwd) + snapshot.fingerprint.slice(0, 24);
 }
 
 /** Convert a snapshot to native messages and lossless, ignorable source records. */
 export function convertSnapshot(home, snapshot, version) {
+  const label = sourceLabel(snapshot);
   const id = snapshot.targetSessionId || sessionIdFor(home, snapshot);
   const events = [];
   const add = (type, data, time = snapshot.createdAt, surface = false) => {
@@ -84,15 +88,15 @@ export function convertSnapshot(home, snapshot, version) {
     if (type.startsWith('codex-import/')) event.ignorable = true;
     events.push(event);
   };
-  add('codex-import/source', { format: 1, codexHome: home, threadId: snapshot.thread.id,
+  add('codex-import/source', { format: 1, ...(snapshot.source || { codexHome: home }), threadId: snapshot.thread.id,
     fingerprint: snapshot.fingerprint, mode: snapshot.mode, metadata: snapshot.thread, turns: snapshot.turns,
     ...(snapshot.sourceFingerprint ? { sourceFingerprint: snapshot.sourceFingerprint, attachmentFormat: 1, attachments: snapshot.attachmentSummary } : {}),
     destinationCwd: snapshot.destinationCwd ?? snapshot.thread.cwd ?? null,
     notice: '历史记录导入；工具记录为文本，不会重新执行。' });
-  add('session/title', { title: snapshot.thread.title?.trim() || `Codex ${snapshot.thread.id}`,
+  add('session/title', { title: snapshot.thread.title?.trim() || `${label} ${snapshot.thread.id}`,
     messageSeqs: [], source: { kind: 'user' } });
 
-  for (const record of snapshot.records) add('codex-import/raw', { storage: 'sqlite', ...record }, record.time);
+  for (const record of snapshot.records) add('codex-import/raw', { storage: snapshot.mode === 'chatgpt' ? 'chatgpt' : 'sqlite', ...record }, record.time);
   for (const record of snapshot.supplemental) add('codex-import/raw', { storage: 'jsonl', ...record }, record.time);
 
   let turn = 0;
@@ -117,9 +121,10 @@ export function convertSnapshot(home, snapshot, version) {
         role: 'system', source: { kind: 'system-prompt' }, content: [] } }, time, true);
       hasHead = true;
     }
-    const message = { id: `codex-message-${digest([id, record.key]).slice(0, 32)}`, ...projected,
+    const { assets, model, ...native } = projected;
+    const message = { id: `codex-message-${digest([id, record.key]).slice(0, 32)}`, ...native,
       source: projected.role === 'user' ? { kind: 'user' }
-        : { kind: 'model', provider: snapshot.thread.model_provider || 'codex', model: snapshot.thread.model || 'codex-import' } };
+        : { kind: 'model', provider: snapshot.thread.model_provider || 'codex', model: model || snapshot.thread.model || 'codex-import' } };
     if (projected.role === 'user') add('user/message', message, time, true);
     else {
       // Codex does not retain the original provider delta timing. This is an

@@ -124,7 +124,7 @@ export function ImportBrowser({ loadCatalog, openSession, refreshSessions, enabl
   const selectProject = key => { setProject(key); setLimit(100); };
   return h('main', { className: 'codex-browser', 'aria-label': 'Codex 导入项目与对话' },
     h('header', { className: 'codex-browser-header' },
-      h('div', null, h('h1', null, 'Codex 导入目录'), h('p', { className: 'codex-muted' }, `按原项目浏览 · ${projects.length} 个项目 · ${state.items.length} 条会话`)),
+      h('div', null, h('h1', null, state.items.some(row => row.sourceKind === 'chatgpt') ? 'Codex / ChatGPT 导入目录' : 'Codex 导入目录'), h('p', { className: 'codex-muted' }, `按来源与项目浏览 · ${projects.length} 个分组 · ${state.items.length} 条会话`)),
       enableSidebar && h('button', { type: 'button', className: 'codex-button', onClick: enableSidebar }, '使用导入目录侧栏'),
       h('button', { type: 'button', className: 'codex-button', onClick: () => { setState(old => ({ ...old, loading: true })); setGeneration(value => value + 1); } }, '刷新目录')),
     h('div', { className: 'codex-browser-search' },

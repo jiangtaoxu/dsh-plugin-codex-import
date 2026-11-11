@@ -1,22 +1,25 @@
 import { stat, mkdir } from 'node:fs/promises';
 import { CodexSource } from './source.js';
+import { ChatGPTSource } from './chatgpt-source.js';
 import { convertSnapshot } from './convert.js';
 import { recoverImportedSession } from './recovery.js';
 import { prepareAttachments } from './media.js';
 import { planDestinations, verifyDestination } from './destinations.js';
 import { SyncIndex, syncDifference, synchronizeCopy } from './sync.js';
 import { AttachmentAudit } from './attachment-audit.js';
+import { harnessOverlapIndex, snapshotMessages } from './overlap.js';
 
 /** Summarize each thread without exposing conversation content to command output. */
 export function reportText(report) {
   const lines = [
-    report.dryRun ? 'Codex 导入预览（未写入）' : 'Codex 导入完成',
+    report.dryRun ? `${report.sourceKind === 'chatgpt' ? 'ChatGPT' : 'Codex'} 导入预览（未写入）` : `${report.sourceKind === 'chatgpt' ? 'ChatGPT' : 'Codex'} 导入完成`,
     `会话: ${report.total}；有正文: ${report.withBody}；仅索引: ${report.metadataOnly}`,
     report.dryRun ? `已检查: ${report.processed}；失败: ${report.failed.length}；尚未复制，确认后导入` : `新建: ${report.imported}；增量更新: ${report.updated || 0}；待重试: ${report.deferred || 0}；已存在: ${report.skipped}；断点续传: ${report.recovered}；失败: ${report.failed.length}`,
-    `SQLite 条目: ${report.items}；JSONL 原始记录: ${report.rolloutRecords}`,
+    report.sourceKind === 'chatgpt' ? `ChatGPT 原始节点: ${report.items}；当前路径消息: ${report.sourceSummary?.selectedMessages || 0}；其他分支消息: ${report.sourceSummary?.offPathMessages || 0}` : `SQLite 条目: ${report.items}；JSONL 原始记录: ${report.rolloutRecords}`,
     ...(report.dryRun ? [] : [`已关联项目: ${report.workspaces}；未关联项目的会话: ${report.ungrouped}`]),
   ];
   if (report.syncExisting) lines.push(`增量同步计划：新增 ${report.syncSummary.new}，源变化 ${report.syncSummary.changed}，源未变化 ${report.syncSummary.unchanged}；实际更新以确认时为准`);
+  if (report.overlap) lines.push(`内容重合检查：已读 ${report.overlap.scanned} 条 dsh 会话；${report.overlap.exactConversations} 条导出对话的文本序列相同，${report.overlap.sharedConversations} 条存在相同长消息。跨来源仅提示，保留双方，不自动合并或跳过。`);
   if (report.destinationSummary) {
     const d = report.destinationSummary;
     lines.push(`工作目录：${d.mode === 'original' ? `优先原项目，${d.originalSessions} 条会话复用 ${d.originalProjects} 个现有目录` : '统一导入目录'}；${d.fallbackSessions} 条放入 ${d.fallbackPath}`);
@@ -97,11 +100,14 @@ async function persist(persistence, converted, signal, onBatch) {
 /** Import all recoverable local conversations, with explicit metadata-only results. */
 export async function importCodex(services, options = {}, signal, onProgress) {
   onProgress?.({ phase: 'discovering', total: null, processed: 0, imported: 0, skipped: 0, recovered: 0, failed: 0, metadataOnly: 0 });
-  const source = await new CodexSource(options.codexHome).open(signal);
+  if (options.source && !['codex', 'chatgpt'].includes(options.source)) throw new Error('source 必须为 codex 或 chatgpt');
+  const chatgpt = options.source === 'chatgpt';
+  const source = await (chatgpt ? new ChatGPTSource(options.archivePath, options.sourceId) : new CodexSource(options.codexHome)).open(signal);
   const report = { dryRun: options.dryRun !== false, total: 0, withBody: 0, metadataOnly: 0,
     imported: 0, updated: 0, deferred: 0, skipped: 0, recovered: 0, syncSummary: { new: 0, changed: 0, unchanged: 0 }, items: 0, rolloutRecords: 0, workspaces: 0,
     ungrouped: 0, failed: [], warnings: [], sourceHome: source.home, processed: 0,
-    attachmentFound: 0, attachmentImages: 0, attachmentFiles: 0, attachmentMissing: 0 };
+    attachmentFound: 0, attachmentImages: 0, attachmentFiles: 0, attachmentMissing: 0,
+    ...(chatgpt ? { sourceKind: 'chatgpt', sourcePath: source.path, archiveFingerprint: source.archive.fingerprint, sourceSummary: source.summary } : {}) };
   const audit = services.createAttachmentAudit?.() || new AttachmentAudit();
   const attachmentWarnings = new Set();
   const deferredWarnings = new Set();
@@ -112,8 +118,12 @@ export async function importCodex(services, options = {}, signal, onProgress) {
     failed: report.failed.length, metadataOnly: report.metadataOnly, withBody: report.withBody,
     attachmentImages: report.attachmentImages, attachmentFiles: report.attachmentFiles, attachmentMissing: report.attachmentMissing,
     attachmentAudit: audit.snapshot(), destinationSummary: report.destinationSummary,
+    ...(chatgpt ? { sourceKind: 'chatgpt', sourceSummary: source.summary } : {}),
     currentTitle: String(thread?.name || thread?.title || thread?.first_user_message || thread?.id || '').replace(/\s+/g, ' ').slice(0, 160), ...extra });
   try {
+    if (chatgpt && options.reviewedArchiveFingerprint && options.reviewedArchiveFingerprint !== source.archive.fingerprint) throw new Error('预览后的 ChatGPT 导出包发生变化，请重新预览后确认');
+    const overlap = chatgpt && report.dryRun && options.checkOverlap !== false ? await harnessOverlapIndex(services, signal) : undefined;
+    if (overlap) report.overlap = { scanned: overlap.index.rows.length, exactConversations: 0, sharedConversations: 0, matches: [], failed: overlap.warnings.length };
     const threads = source.list(options);
     report.total = threads.length;
     if (report.dryRun) report.previewThreadIds = threads.map(thread => thread.id);
@@ -123,7 +133,7 @@ export async function importCodex(services, options = {}, signal, onProgress) {
     report.groupByProject = destinations.groupByProject;
     const syncIndex = options.syncExisting !== false ? await SyncIndex.create(services, source.home, signal, options.reviewedSyncTargets) : undefined;
     report.syncExisting = !!syncIndex;
-    report.workspaceTitle = options.workspaceTitle || 'Codex 导入';
+    report.workspaceTitle = chatgpt && (!options.workspaceTitle || options.workspaceTitle === 'Codex 导入') ? 'ChatGPT 导入' : options.workspaceTitle || 'Codex 导入';
     report.importWorkspacePath = destinations.fallback;
     if (report.dryRun) { report.previewDestinations = destinations.entries; report.previewSyncTargets = {}; }
     if (!report.dryRun && destinations.summary.fallbackSessions) {
@@ -136,6 +146,14 @@ export async function importCodex(services, options = {}, signal, onProgress) {
       publish('reading', thread);
       try {
         const snapshot = await source.read(thread, signal);
+        if (overlap) {
+          const match = overlap.index.compare(snapshotMessages(snapshot));
+          if (match.exact.length) report.overlap.exactConversations++;
+          if (match.shared.length) report.overlap.sharedConversations++;
+          if ((match.exact.length || match.shared.length) && report.overlap.matches.length < 30) report.overlap.matches.push({ threadId: thread.id,
+            exact: match.exact.slice(0, 10), shared: match.shared.slice(0, 10) });
+        }
+        if (chatgpt) await source.archive.assertUnchanged(signal);
         const destination = destinations.entries[thread.id];
         if (!report.dryRun) await verifyDestination(destination);
         snapshot.destinationCwd = destination.path;
@@ -166,6 +184,7 @@ export async function importCodex(services, options = {}, signal, onProgress) {
         if (!report.dryRun) {
           if (!services.sessionPersistence) throw new Error('Harness sessionPersistence service is required');
           await verifyDestination(destination);
+          if (chatgpt) await source.archive.assertUnchanged(signal);
           publish('converting', thread);
           const converted = convertSnapshot(source.home, snapshot, services.formatVersion);
           publish('writing', thread);
@@ -211,7 +230,7 @@ export async function importCodex(services, options = {}, signal, onProgress) {
       await new Promise(resolve => setImmediate(resolve));
     }
     report.workspaces = workspaceIds.size;
-    report.warnings = [...source.warnings, ...[...deferredWarnings].slice(0, 20), ...[...attachmentWarnings].slice(0, 20)];
+    report.warnings = [...source.warnings, ...(overlap?.warnings.slice(0, 10) || []), ...[...deferredWarnings].slice(0, 20), ...[...attachmentWarnings].slice(0, 20)];
     if (attachmentWarnings.size > 20) report.warnings.push(`另有 ${attachmentWarnings.size - 20} 条附件提示，具体缺失原因保留在对应消息中。`);
     if (report.syncExisting) report.warnings.push('同一来源和工作目录复用已有副本增量追加；源端修订作为新版本标记，已有历史和 Harness 续聊保留。打开/运行或被占用的会话可稍后重试。');
     if (report.metadataOnly) report.warnings.push(`${report.metadataOnly} 条会话未找到本地正文，仅保留索引元数据。`);

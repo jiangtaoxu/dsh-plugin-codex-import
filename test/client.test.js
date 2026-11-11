@@ -106,6 +106,23 @@ test('progress parsing tolerates retained tails and malformed older lines', () =
   assert.equal(latestProgress('broken'), undefined);
 });
 
+test('ChatGPT preview displays branch exclusions, content overlap and frozen archive confirmation', t => {
+  const view = mount(t);
+  view.result('s', 'codex-import', { kind: 'success', text: receipt.replace('导入任务', '预览任务') });
+  view.state.rows.s = [{ id: 'codex-import-abcdef1234', status: 'completed', startedAt: Date.now() }];
+  view.state.observed['codex-import-abcdef1234'] = { text: JSON.stringify({ phase: 'completed', mode: 'preview', sourceKind: 'chatgpt', total: 3, processed: 3,
+    imported: 0, skipped: 0, recovered: 0, failed: 0, metadataOnly: 0, withBody: 3,
+    sourceSummary: { shards: 2, selectedMessages: 20, offPathMessages: 4, unsupported: ['群聊 1 个', 'Pages 文档 2 个'] },
+    overlap: { exactConversations: 1, sharedConversations: 2 },
+    importProposal: { token: 'chatgpt-plan', count: 3, withBody: 3, metadataOnly: 0, sourceKind: 'chatgpt', sourceHome: '/export.zip',
+      destinationPath: '/imports/chatgpt', workspaceTitle: 'ChatGPT 导入', expiresAt: Date.now() + 60000 } }) + '\n' };
+  view.tick();
+  assert.match(view.labelled('导入统计').textContent, /其他分支 4 条/);
+  assert.match(view.labelled('导入统计').textContent, /群聊 1 个/);
+  assert.match(view.labelled('导入统计').textContent, /文本序列相同 1 条/);
+  assert.match(find(view.dialog, node => node.textContent?.includes('确认导入本次已检查的')).textContent, /归档变化需要重新预览/);
+});
+
 test('the browser artifact registers the Harness factory with job dependencies', async () => {
   let registration;
   runInNewContext(await readFile(new URL('../lib/client.js', import.meta.url), 'utf8'), {

@@ -23,6 +23,9 @@ flowchart TD
 | 模块 | 职责 |
 | --- | --- |
 | `src/source.js`、`jsonl.js` | 发现本地数据库、只读 SQLite、合并 JSONL 补充记录、生成来源摘要 |
+| `src/archive.js`、`chatgpt-source.js` | ZIP/目录只读访问、大小/路径/CRC 校验、ChatGPT 分片发现、父节点路径与原始分支保留 |
+| `src/chatgpt-media.js` | ChatGPT 归档附件解析、文件头识别、原生图片与文件保存 |
+| `src/overlap.js`、`scripts/audit-chatgpt.mjs` | 精确文本重合提示及本机 Codex/dsh 只读对比；不按内容自动合并 |
 | `src/destinations.js` | 原项目 / 回退工作目录规划及确认时目录身份校验 |
 | `src/media.js` | 明确附件识别、内嵌图片恢复、原生附件准入及复制 |
 | `src/convert.js` | 原生消息、轮次、流事件与可忽略来源记录转换 |
@@ -49,6 +52,8 @@ flowchart TD
 ## 增量同步边界
 
 原始副本 ID 包含来源命名空间与内容摘要。增量模式在相同来源目录、Codex ID 和目标 cwd 中选择经过来源验证的已有副本，然后保持其 ID，只向末尾追加。
+
+ChatGPT 使用 `chatgpt-` 会话前缀和账户 ID 摘要作为稳定来源，不使用 ZIP 路径作为身份。共享 `codex-import/*` 插件事件命名空间，来源事件通过 `kind:chatgpt`、`sourceId`、`archivePath` 区分；目录、清理、恢复和同步共用身份校验，继续识别旧 Codex 记录。原始节点保存在 `storage:chatgpt` 记录中，`active`/`order` 指示当前路径，分支切换以追加修订处理。ZIP 路径只用于来源说明和保护，预览确认通过完整归档摘要防止替换。
 
 逐条记录保存原始摘要与展示摘要。新增或修订的展示消息进入新轮次，原始事件和 Harness 续聊保持为不可变前缀。源端删除只记录差异，不删除目标消息。自定义 Harness 标题不会被源标题覆盖。
 

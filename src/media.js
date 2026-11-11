@@ -5,6 +5,7 @@ import { basename, extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { digest } from './source.js';
 import { projectedRecords } from './convert.js';
+import { prepareChatGPTAttachments } from './chatgpt-media.js';
 
 const IMAGE_TYPES = new Map([['.png', 'image/png'], ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg'], ['.webp', 'image/webp'], ['.gif', 'image/gif']]);
 const MIME_TYPES = new Set(IMAGE_TYPES.values());
@@ -125,6 +126,7 @@ function rolloutImages(snapshot) {
 export async function prepareAttachments(snapshot, store, options = {}, signal, progress, onAttachment) {
   const summary = { images: 0, files: 0, missing: 0, found: 0, available: 0 };
   if (options.importAttachments === false) return summary;
+  if (snapshot.mode === 'chatgpt') return prepareChatGPTAttachments(snapshot, store, options, signal, progress, onAttachment);
   const limit = options.maxAttachmentBytes ?? DEFAULT_LIMIT;
   const dryRun = options.dryRun !== false;
   const prepared = new Map(); const identities = []; const warnings = [];

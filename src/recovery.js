@@ -40,7 +40,7 @@ export function repairImportedHead(header, input) {
     if (!Number.isSafeInteger(seq) || mapping[seq] === undefined) throw new Error('Invalid event reference during recovery');
     return mapping[seq];
   };
-  const id = `codex-recovered-${createHash('sha256').update(JSON.stringify([header.id, input])).digest('hex').slice(0, 24)}`;
+  const id = `${header.id.startsWith('chatgpt-') ? 'chatgpt' : 'codex'}-recovered-${createHash('sha256').update(JSON.stringify([header.id, input])).digest('hex').slice(0, 24)}`;
   const events = order.map((old, seq) => {
     const event = structuredClone(input[old]); event.seq = seq;
     if (event.sourceEventSeqs) event.sourceEventSeqs = event.sourceEventSeqs.map(map);

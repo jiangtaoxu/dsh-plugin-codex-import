@@ -23,8 +23,8 @@ export async function verifyDestination(entry) {
 
 /** Work directories are metadata; originals are never created or moved by import. */
 export async function planDestinations(threads, options, signal) {
-  const fallback = resolve(options.importWorkspacePath || join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'imports', 'codex'));
-  const groupByProject = options.groupByProject !== false;
+  const fallback = resolve(options.importWorkspacePath || join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'imports', options.source === 'chatgpt' ? 'chatgpt' : 'codex'));
+  const groupByProject = options.source !== 'chatgpt' && options.groupByProject !== false;
   const entries = Object.create(null); const cache = new Map();
   const summary = { mode: groupByProject ? 'original' : 'unified', originalSessions: 0, fallbackSessions: 0,
     originalProjects: 0, fallbackPath: fallback, examples: [] };

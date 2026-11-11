@@ -6,6 +6,8 @@
 
 Import local Codex projects and conversations into **native Harness sessions**, then append later changes without replacing conversations continued in Harness.
 
+The current source also supports ChatGPT export ZIPs and extracted directories, including sharded conversations, selected branches, images, files, audio files and transcripts. See [ChatGPT import](docs/USAGE.md#chatgpt-导出包导入). This feature is not included in the linked v0.11.0 release; build from current source.
+
 **Compatibility:** DeepSeek Harness **0.2.2-rc.1**, Node.js **24.9+**. Other Harness versions require compatibility testing. This is an independent community plugin, not affiliated with OpenAI or DeepSeek.
 
 ## Features
@@ -108,7 +110,7 @@ npm test
 npm pack --dry-run
 ```
 
-The current version passed **109 local tests** using temporary fixtures and real Harness persistence, without model calls. See [testing](docs/TESTING.md), [architecture](docs/ARCHITECTURE.md), [contributing](CONTRIBUTING.md) and [security](SECURITY.md).
+The current development source passed **120 local tests** using temporary fixtures and real Harness persistence, without model calls. See [testing](docs/TESTING.md), [architecture](docs/ARCHITECTURE.md), [contributing](CONTRIBUTING.md) and [security](SECURITY.md).
 
 ## License
 

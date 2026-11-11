@@ -11,6 +11,10 @@ export class ImportPlans {
     const { taskMode, dryRun, ...original } = options;
     const frozen = structuredClone({ ...original, codexHome: report.sourceHome, threadIds,
       ...(report.importWorkspacePath ? { importWorkspacePath: report.importWorkspacePath } : {}) });
+    if (report.sourceKind === 'chatgpt') {
+      delete frozen.codexHome;
+      Object.assign(frozen, { source: 'chatgpt', archivePath: report.sourcePath, reviewedArchiveFingerprint: report.archiveFingerprint });
+    }
     const token = randomUUID(); const expiresAt = Date.now() + 15 * 60 * 1000;
     if (report.previewDestinations) {
       frozen.groupByProject = report.groupByProject;
@@ -19,7 +23,7 @@ export class ImportPlans {
     }
     this.plans.set(token, { sessionId, options: frozen, expiresAt });
     return { token, expiresAt, count: threadIds.length, total: report.total,
-      sourceHome: report.sourceHome, destinationPath: report.importWorkspacePath || '', destinationSummary: report.destinationSummary,
+      sourceHome: report.sourcePath || report.sourceHome, ...(report.sourceKind ? { sourceKind: report.sourceKind, sourceSummary: report.sourceSummary } : {}), destinationPath: report.importWorkspacePath || '', destinationSummary: report.destinationSummary,
       workspaceTitle: report.workspaceTitle || '按原项目分组', groupByProject: frozen.groupByProject === true,
       syncExisting: report.syncExisting, syncSummary: report.syncSummary, withBody: report.withBody, metadataOnly: report.metadataOnly,
       importAttachments: frozen.importAttachments !== false,

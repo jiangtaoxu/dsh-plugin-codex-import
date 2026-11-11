@@ -23,6 +23,8 @@
 
 **Codex Import** 是 DeepSeek Harness 的第三方插件。它读取本机 Codex 对话，生成可搜索、可打开、可续聊的 Harness 原生会话，并在后续同步时保留你在 Harness 中继续写下的内容。
 
+当前源码另支持 **ChatGPT 导出的 ZIP / 解压目录**，包括分片对话、当前分支、图片、文件、音频文件与转写。使用方式与边界见[ChatGPT 导入](docs/USAGE.md#chatgpt-导出包导入)。此功能尚未包含在上方链接的 v0.11.0 发布包中，需要从当前源码构建。
+
 > **先预览，确认后写入。** 插件只读 Codex 源数据；不会调用模型、重放历史工具或自动上传对话。之后在 Harness 中主动续聊时，历史会按 Harness 的正常模型请求使用。
 
 ## 能做什么
@@ -62,7 +64,7 @@ npm ci
 npm pack
 ```
 
-将生成 `dsh-plugin-codex-import-0.11.0.tgz`。不要求 npm 账号；本项目尚未发布到 npm。
+当前开发源码将生成 `dsh-plugin-codex-import-0.12.0-dev.0.tgz`，包含 ChatGPT 导入支持。不要求 npm 账号；本项目尚未发布到 npm。
 
 </details>
 
@@ -164,7 +166,7 @@ npm test
 npm pack --dry-run
 ```
 
-测试使用临时数据库与真正的 Harness 持久化服务，不调用模型。当前版本本地验证 **109 项测试通过**；覆盖增量幂等、续聊保留、附件、断点恢复、清理确认和界面渲染。测试范围与限制见[验证说明](docs/TESTING.md)。
+测试使用临时数据库与真正的 Harness 持久化服务，不调用模型。当前开发源码本地验证 **120 项测试通过**；覆盖增量幂等、续聊保留、附件、断点恢复、清理确认和界面渲染。测试范围与限制见[验证说明](docs/TESTING.md)。
 
 - [使用手册](docs/USAGE.md)：配置、附件、清理、兼容性与故障处理
 - [架构说明](docs/ARCHITECTURE.md)：数据流、模块职责和同步边界

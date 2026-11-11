@@ -5,11 +5,9 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { tryLockExclusive } from '@deepseek-ai/node-addon-system/flock';
-import { digest } from './source.js';
 import { readZstdFrames } from './zstd.js';
+import { IMPORT_ID, isImportedIdentity, sourceLocation } from './identity.js';
 
-const NORMAL = /^codex-[a-f0-9]{24}-[a-f0-9]{24}$/;
-const RECOVERED = /^codex-recovered-[a-f0-9]{24}$/;
 const GENERATION = /^session(?:\.v[1-9][0-9]*)?\.jsonl(?:\.zstd)?$/;
 const within = (path, root) => { const part = relative(root, path); return part !== '' && part !== '..' && !part.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) && !isAbsolute(part); };
 
@@ -30,8 +28,7 @@ export async function inspectImportedFile(path, expectedId, signal) {
         const event = JSON.parse(line);
         if (event.type !== 'codex-import/source' || event.seq !== 0 || event.data?.format !== 1) return undefined;
         source = event.data;
-        if (typeof source.codexHome !== 'string' || !isAbsolute(source.codexHome)
-          || typeof source.threadId !== 'string' || !/^[a-f0-9]{64}$/.test(source.fingerprint || '')) return undefined;
+        if (typeof sourceLocation(source) !== 'string' || !isAbsolute(sourceLocation(source))) return undefined;
         continue;
       }
       // Our JSONL writer puts the envelope type before the large raw payload.
@@ -45,9 +42,8 @@ export async function inspectImportedFile(path, expectedId, signal) {
     }
   } finally { decoded.destroy?.(); await decoded.return?.(); }
   if (!source) return undefined;
-  const expected = `codex-${digest([source.codexHome, source.threadId, source.destinationCwd ?? source.metadata?.cwd ?? null]).slice(0, 24)}-${source.fingerprint.slice(0, 24)}`;
-  if (expectedId !== expected && !(RECOVERED.test(expectedId) && recoverySource === expected)) return undefined;
-  return { id: expectedId, sourceHome: resolve(source.codexHome), continued, incomplete: !complete,
+  if (!isImportedIdentity(expectedId, source, recoverySource)) return undefined;
+  return { id: expectedId, sourceHome: resolve(sourceLocation(source)), continued, incomplete: !complete,
     title: source.metadata?.name || source.metadata?.title || source.threadId };
 }
 
@@ -98,7 +94,7 @@ export class CleanupPlans {
     if (!['darwin', 'linux'].includes(process.platform)) throw new Error('当前清理仅支持 macOS / Linux 的 JSONL 存储');
     const root = await realpath(this.root);
     const snapshots = (await services.sessionPersistence.list({ signal }))
-      .filter(row => NORMAL.test(row.header.id) || RECOVERED.test(row.header.id));
+      .filter(row => IMPORT_ID.test(row.header.id));
     const report = baseReport(snapshots.length);
     const entries = [];
     for (const snapshot of snapshots) {
