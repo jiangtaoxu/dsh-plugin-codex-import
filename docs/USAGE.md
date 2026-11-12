@@ -6,11 +6,26 @@
 
 支持 **DeepSeek Harness 0.2.2-rc.1**，包括当前桌面版；Node.js 需要 **24.9 或以上**。Harness 的 API 尚未稳定，本插件锁定此版本的会话服务，升级 Harness 后应重新验证兼容性。
 
+## 界面导入向导
+
+v0.13.0 提供以下界面流程；带 JSON 参数的兼容命令仍可使用。下载发布包，或从源码运行 `npm ci`、`npm pack` 构建安装包。
+
+1. 点击导入目录或侧栏的 **「导入对话」**，或执行无参数 `/codex-import preview`。
+2. 选择 **「本地 Codex」** 或 **「ChatGPT 导出包」**。Codex 显示当前 dsh 实例检测到的目录（包含配置目录、默认目录和可用的 Berth 目录）；ZIP 可拖入或点击 **「选择 ZIP 文件」**，显示文件名与大小。
+3. 点击 **「开始预览」**。ZIP 会先传输到当前连接的 dsh 实例的临时缓存并检查格式；此时不创建导入会话或复制附件。
+4. 检查新增/更新计划、附件缺失、分支和重合提示，点击 **「确认导入 N 条对话」**。也可点击 **「更换来源或文件」** 返回；旧确认编号会失效。
+
+「高级选项」默认折叠，可设置附件开关、是否包含归档、重合检查、其他 Codex 目录、目标目录，以及缺少账户 ID 时使用的 ChatGPT 稳定来源标识。界面记住上次选择的来源，不会自动开始导入。
+
+ZIP 使用文件流传输到宿主认证的插件接口，单个压缩包上限 1 GiB（解压限制仍见下文）。临时文件使用随机目录与按会话绑定的文件编号，存放在 `$DSH_HOME/cache/codex-import/uploads`。文件准备取消或失败时删除部分文件；导入结束后删除暂存副本；空闲暂存约 30 分钟后自动清理。重启后旧编号失效，超过一天的中断残留在下次上传时清理。用户原始 ZIP 不修改。浏览器连接远程 dsh 时，文件会传到该远程实例；Codex 来源同样属于该实例所在机器。
+
+无参数 `preview` 只打开向导；`preview {}`、带筛选参数的 `preview`、`run` 和 `sync` 继续直接开始预览，并保留原有确认流程。
+
 ## ChatGPT 导出包导入
 
 v0.12.0 起支持 ZIP 和解压后的目录，使用相同的预览与确认流程：
 
-下载 v0.12.0 发布包，或从源码运行 `npm ci`、`npm pack` 生成 `dsh-plugin-codex-import-0.12.0.tgz`，使用下方的第三方插件安装方式安装。
+下载 v0.13.0 发布包，或从源码运行 `npm ci`、`npm pack` 生成 `dsh-plugin-codex-import-0.13.0.tgz`，使用下方的第三方插件安装方式安装。
 
 ```text
 /codex-import preview {"source":"chatgpt","archivePath":"/absolute/path/export.zip"}
@@ -41,13 +56,13 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 
 ## 安装到 Harness 桌面版
 
-先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.12.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.12.0/dsh-plugin-codex-import-0.12.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
+先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.13.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.13.0/dsh-plugin-codex-import-0.13.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
 
 1. 打开左侧「插件」，点击「添加插件」旁的菜单，选择「安装第三方插件」。
 2. 在安装来源中输入本插件安装包的绝对路径。使用 npm 文件 spec 可以保留路径中的空格，例如：
 
    ```text
-   file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.12.0.tgz
+   file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.13.0.tgz
    ```
 
 3. 完成安装并启用插件。如果界面提示需要重启，重启 Harness。
@@ -61,7 +76,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
    /codex-import run
    ```
 
-`preview` 会立即返回任务编号并打开进度窗口，后台完整读取并检查本地会话和附件。窗口显示已检查数量、百分比、当前会话、有正文/仅索引数量、可恢复附件和失败数量；此阶段不复制会话或附件。
+无参数 `preview` 先打开上方来源选择向导；点击「开始预览」后，或使用 `preview {}` / `run`，会立即返回任务编号并打开进度窗口，后台读取并检查本地会话和附件。窗口显示已检查数量、百分比、当前会话、有正文/仅索引数量、可恢复附件和失败数量；此阶段不复制会话或附件。
 
 预览完成后，窗口显示来源、目标目录和会话范围。点击 **「确认导入」** 才开始复制；点击「暂不导入」或关闭窗口不会开始导入。确认在完成预览后 15 分钟内有效，只能由发起预览的 Harness 会话使用一次；可用 `status` 重新打开。确认后读取本次成功检查的会话的最新内容，不加入预览后新增的会话；失败条目不进入确认范围。预览显示预计新增、源变化、源未变化数量；确认时读取最新正文和附件，实际更新结果可能因源内容或附件变化而不同。
 
@@ -100,7 +115,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 ```sh
 '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh' \
   plugin --profile desktop add \
-  'file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.12.0.tgz'
+  'file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.13.0.tgz'
 ```
 
 安装后重新打开应用。不要用 npm 安装的另一份 dsh 修改桌面版专用的 desktop profile。
@@ -108,7 +123,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 ## Web / npm 版安装
 
 ```sh
-dsh plugin --profile web add '/absolute/path/dsh-plugin-codex-import-0.12.0.tgz'
+dsh plugin --profile web add '/absolute/path/dsh-plugin-codex-import-0.13.0.tgz'
 dsh --profile web --dump-config
 dsh web
 ```

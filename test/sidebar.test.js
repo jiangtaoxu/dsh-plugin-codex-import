@@ -78,6 +78,12 @@ test('sidebar shows readable load failures and allows native workspace managemen
   await React.act(async () => native.click()); assert.ok(view.calls.includes('native'));
 });
 
+test('sidebar import button opens the chooser directly', async t => {
+  let opens = 0; const view = await mount(t, { openImport: () => { opens++; } });
+  const button = [...view.doc.querySelectorAll('button')].find(b => b.textContent === '导入对话');
+  await React.act(async () => button.click()); assert.equal(opens, 1);
+});
+
 test('sidebar uses the public slot override and restoring native view removes only the presentation override', () => {
   let injected, registration, released = 0; const oldStorage = globalThis.localStorage;
   const values = new Map(); globalThis.localStorage = { getItem: key => values.get(key), setItem: (k, v) => values.set(k, v), removeItem: k => values.delete(k) };

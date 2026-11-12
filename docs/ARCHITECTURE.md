@@ -24,6 +24,7 @@ flowchart TD
 | --- | --- |
 | `src/source.js`、`jsonl.js` | 发现本地数据库、只读 SQLite、合并 JSONL 补充记录、生成来源摘要 |
 | `src/archive.js`、`chatgpt-source.js` | ZIP/目录只读访问、大小/路径/CRC 校验、ChatGPT 分片发现、父节点路径与原始分支保留 |
+| `src/import-wizard.js`、`uploads.js` | 来源选择、ZIP 拖放/选择、Codex 目录发现、认证流式暂存、文件编号与生命周期清理 |
 | `src/chatgpt-media.js` | ChatGPT 归档附件解析、文件头识别、原生图片与文件保存 |
 | `src/overlap.js`、`scripts/audit-chatgpt.mjs` | 精确文本重合提示及本机 Codex/dsh 只读对比；不按内容自动合并 |
 | `src/destinations.js` | 原项目 / 回退工作目录规划及确认时目录身份校验 |

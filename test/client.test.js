@@ -60,6 +60,37 @@ test('command-only sessions show successful preview receipts and safe errors', t
   assert.equal(view.labelled('导入详细结果').textContent, '<script>never execute</script>');
 });
 
+test('bare preview opens the source chooser without starting a job, and Escape closes it', async t => {
+  const priorFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ source: 'codex', codexHome: '/source', codexSources: [], maxArchiveBytes: 1024 ** 3,
+    defaults: { importAttachments: true, includeArchived: true, checkOverlap: true, importWorkspacePath: '' } });
+  t.after(() => { globalThis.fetch = priorFetch; });
+  const view = mount(t);
+  view.result('owner', 'codex-import', { kind: 'success', text: 'Codex 导入向导\n请选择来源' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(view.heading.textContent, '导入对话'); assert.equal(view.labelled('导入来源选择').hidden, false);
+  assert.equal(view.calls.filter(c => c[0] === 'execute' || c[0] === 'watch').length, 0);
+  view.dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+  assert.equal(view.dialog.open, false); assert.equal(view.labelled('导入来源选择').hidden, true);
+});
+
+test('source chooser sends preview options through the existing command and shows its job', async t => {
+  const priorFetch = globalThis.fetch; const calls = [];
+  globalThis.fetch = async () => Response.json({ source: 'codex', codexHome: '/chosen/codex', codexSources: [], maxArchiveBytes: 1024 ** 3,
+    defaults: { importAttachments: true, includeArchived: true, checkOverlap: true, importWorkspacePath: '' } });
+  t.after(() => { globalThis.fetch = priorFetch; });
+  const view = mount(t, { remote: { commands: { async execute(...args) {
+    calls.push(args); return { ok: true, value: { result: { kind: 'success', text: receipt.replace('导入任务', '预览任务') } } };
+  } } } });
+  view.result('owner', 'codex-import', { kind: 'success', text: 'Codex 导入向导' });
+  await new Promise(resolve => setImmediate(resolve));
+  view.labelled('开始预览').dispatchEvent(new Event('click'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.length, 1); assert.equal(calls[0][0], 'owner');
+  assert.equal(JSON.parse(calls[0][1].slice('/codex-import preview '.length)).codexHome, '/chosen/codex');
+  assert.equal(view.labelled('导入来源选择').hidden, true); assert.equal(view.cancel.hidden, false);
+});
+
 test('running jobs show real counts and can continue in the background, reopen, and finish', t => {
   const view = mount(t);
   view.result('s', 'codex-import', { kind: 'success', text: receipt });

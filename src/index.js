@@ -7,6 +7,7 @@ import { ImportCatalog, installCatalogRoute, warmNativeCache } from './catalog.j
 import { AttachmentAudits, installAttachmentAuditRoute } from './attachment-audit.js';
 import { ImportPlans } from './import-plans.js';
 import { IMPORT_ID } from './identity.js';
+import { ArchiveUploads, installUploadRoutes } from './uploads.js';
 
 export const name = 'codex-import';
 export const inject = ['commands', 'sessionPersistence', 'workspaceRegistry', 'jobs', 'agents', 'sessions', 'sessionProjectionCache', 'sessionTitle', 'connection', 'attachments'];
@@ -35,6 +36,7 @@ export function apply(ctx, config = {}) {
   const cleanup = new CleanupPlans(config.harnessSessionRoot);
   const previews = new ImportPlans();
   const audits = new AttachmentAudits();
+  const uploads = new ArchiveUploads();
   const services = () => ({ sessionPersistence: ctx.sessionPersistence, workspaceRegistry: ctx.workspaceRegistry,
     formatVersion: SESSION_FORMAT_VERSION, agents: ctx.agents, sessions: ctx.sessions, sessionProjectionCache: ctx.sessionProjectionCache, attachments: ctx.attachments,
     createAttachmentAudit: () => audits.create(),
@@ -49,26 +51,41 @@ export function apply(ctx, config = {}) {
   if (ctx.connection?.fetch) {
     ctx.effect(() => installAttachmentAuditRoute(ctx, audits));
     ctx.effect(() => installCatalogRoute(ctx, catalog, lifetime.signal));
+    ctx.effect(() => installUploadRoutes(ctx, uploads, config, lifetime.signal));
     void refreshCatalog();
   }
-  const launch = (operation, options) => {
-    currentJob = startImportJob(ctx, services(), options, lifetime.signal, () => {
-      currentJob = undefined;
-      if (ctx.connection?.fetch && !['delete-plan', 'preview'].includes(options.taskMode)) void refreshCatalog();
-    }, operation);
-    lastJob = currentJob;
-    return jobReceipt(currentJob.id, currentJob.mode);
+  const launch = (operation, options, owner) => {
+    let lease;
+    try {
+      if (options.uploadToken) {
+        lease = uploads.acquire(options.uploadToken, owner);
+        options = { ...options, source: 'chatgpt', archivePath: lease.path };
+      }
+      currentJob = startImportJob(ctx, services(), options, lifetime.signal, () => {
+        currentJob = undefined;
+        if (ctx.connection?.fetch && !['delete-plan', 'preview'].includes(options.taskMode)) void refreshCatalog();
+      }, async (...args) => {
+        try {
+          const report = await (operation || importCodex)(...args);
+          if (lease && report.importProposal) report.importProposal.sourceHome = lease.name;
+          return report;
+        }
+        finally { await lease?.release(options.taskMode === 'import'); }
+      });
+      lastJob = currentJob;
+      return jobReceipt(currentJob.id, currentJob.mode);
+    } catch (error) { void lease?.release(); return { kind: 'error', text: `无法启动导入：${error.message}` }; }
   };
   ctx.jobs.attachController('codex-import');
   ctx.on('dispose', () => {
     lifetime.abort(new Error('Codex import plugin unloaded'));
     previews.plans.clear();
     audits.reports.clear();
-    return Promise.allSettled([currentJob?.done, catalog.running]);
+    return Promise.allSettled([currentJob?.done, catalog.running]).then(() => uploads.dispose());
   });
   ctx.commands.register({
     name: 'codex-import',
-    description: 'Codex / ChatGPT 聊天：preview / sync 预览后确认增量导入 / run 预览 / delete 清理副本',
+    description: '导入 Codex / ChatGPT：preview 打开来源选择 / sync 增量预览 / delete 清理副本',
     input: { hint: 'preview | sync | run [JSON 选项] | status | cancel | delete' },
     recordInput: false,
     async handler({ rawInput, signal, agent }) {
@@ -80,6 +97,10 @@ export function apply(ctx, config = {}) {
         return jobReceipt(currentJob.id, currentJob.mode);
       }
       if (currentJob) return jobReceipt(currentJob.id, currentJob.mode);
+      if (!verb || verb === 'preview') {
+        previews.plans.clear();
+        return { kind: 'success', text: 'Codex 导入向导\n请选择本地 Codex 或 ChatGPT 导出包，然后开始预览。' };
+      }
       const match = /^\s*(preview|run|sync|import-confirm|delete|delete-confirm)(?:\s+([\s\S]+))?\s*$/.exec(rawInput);
       if (!match) return { kind: 'error', text: '使用 /codex-import preview 预览，完成后点击「确认导入」。run 也会先预览。' };
       let extra = {};
@@ -112,17 +133,18 @@ export function apply(ctx, config = {}) {
       if (match[1] === 'import-confirm') {
         try {
           const options = previews.confirm(extra.token, agent.session.id);
-          return launch(undefined, { ...options, taskMode: 'import' });
+          return launch(undefined, { ...options, taskMode: 'import' }, agent.session.id);
         } catch (error) { return { kind: 'error', text: `导入未开始：${error.message}` }; }
       }
       try {
         const owner = agent.session.id;
+        previews.plans.clear();
         return launch(async (service, options, jobSignal, progress) => {
           const report = await importCodex(service, { ...options, dryRun: true }, jobSignal, progress);
           jobSignal.throwIfAborted();
           report.importProposal = previews.create(owner, options, report);
           return report;
-        }, { ...config, ...extra, taskMode: 'preview' });
+        }, { ...config, ...extra, taskMode: 'preview' }, owner);
       } catch (error) { return { kind: 'error', text: `无法启动预览：${error.message}` }; }
     },
   });
@@ -130,12 +152,13 @@ export function apply(ctx, config = {}) {
 
 function validateOptions(options) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) throw new Error('选项必须是 JSON 对象');
-  const allowed = new Set(['source', 'archivePath', 'sourceId', 'checkOverlap', 'codexHome', 'cwd', 'threadIds', 'includeArchived', 'preserveArchive',
+  const allowed = new Set(['source', 'archivePath', 'sourceId', 'uploadToken', 'checkOverlap', 'codexHome', 'cwd', 'threadIds', 'includeArchived', 'preserveArchive',
     'groupByProject', 'importWorkspacePath', 'workspaceTitle', 'importAttachments', 'maxAttachmentBytes', 'syncExisting']);
   for (const [key, value] of Object.entries(options)) {
     if (!allowed.has(key)) throw new Error(`未知选项 ${key}`);
     if (['source', 'archivePath', 'sourceId', 'codexHome', 'cwd', 'importWorkspacePath', 'workspaceTitle'].includes(key) && typeof value !== 'string') throw new Error(`${key} 必须是字符串`);
     if (key === 'source' && !['codex', 'chatgpt'].includes(value)) throw new Error('source 必须为 codex 或 chatgpt');
+    if (key === 'uploadToken' && (typeof value !== 'string' || !/^[a-f0-9-]{36}$/.test(value) || options.source !== 'chatgpt' || options.archivePath)) throw new Error('ZIP 暂存编号无效，或同时指定了文件路径');
     if (['checkOverlap', 'includeArchived', 'preserveArchive', 'groupByProject', 'importAttachments', 'syncExisting'].includes(key) && typeof value !== 'boolean') throw new Error(`${key} 必须是布尔值`);
     if (key === 'maxAttachmentBytes' && (!Number.isSafeInteger(value) || value < 1)) throw new Error('maxAttachmentBytes 必须是正整数');
     if (key === 'threadIds' && (!Array.isArray(value) || value.some(id => typeof id !== 'string' || !id))) {

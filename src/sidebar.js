@@ -15,7 +15,7 @@ export function ordinarySidebar(workspaces, sessions, imported) {
 }
 
 export function CodexSidebar({ wide = true, expandSidebar, loadCatalog, sessionSource, workspaceSource,
-  refreshSessions, openSession, nativeSidebar, revision, filterCatalog, catalogProjects }) {
+  refreshSessions, openSession, openImport, nativeSidebar, revision, filterCatalog, catalogProjects }) {
   const sessionBinding = React.useMemo(() => ({ subscribe: listener => sessionSource.subscribe(listener), getSnapshot: () => sessionSource.getSnapshot() }), [sessionSource]);
   const workspaceBinding = React.useMemo(() => ({ subscribe: listener => workspaceSource.subscribe(listener), getSnapshot: () => workspaceSource.getSnapshot() }), [workspaceSource]);
   const sessions = React.useSyncExternalStore(sessionBinding.subscribe, sessionBinding.getSnapshot);
@@ -60,6 +60,7 @@ export function CodexSidebar({ wide = true, expandSidebar, loadCatalog, sessionS
   });
   return sh('section', { className: 'codex-sidebar', 'aria-label': '工作区与 Codex 导入目录' },
     sh('div', { className: 'codex-sidebar-header' }, sh('strong', null, '工作区'),
+      openImport && sh('button', { type: 'button', onClick: openImport, title: '选择 Codex 或 ChatGPT 来源并预览' }, '导入对话'),
       sh('button', { type: 'button', onClick: () => revision.refresh(), title: '刷新导入目录和会话列表' }, '刷新'),
       sh('button', { type: 'button', onClick: nativeSidebar, title: '切换到 Harness 原生侧栏，使用工作区管理功能' }, '原生侧栏')),
     sh('input', { type: 'search', value: query, onChange: e => setQuery(e.target.value), placeholder: '搜索对话或项目', 'aria-label': '搜索侧栏全部对话与项目' }),

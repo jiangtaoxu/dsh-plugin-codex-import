@@ -268,7 +268,10 @@ test('preview and run immediately return jobs, require confirmation and freeze r
   };
   assert.equal((await invoke('run {"dryRun":false}')).kind, 'error');
   assert.equal((await invoke('run {"threadIds":123}')).kind, 'error');
-  const receipt = await invoke('preview');
+  const setup = await invoke('preview');
+  assert.match(setup.text, /导入向导/);
+  assert.equal((await ctx.sessionPersistence.list()).length, 0);
+  const receipt = await invoke('preview {}');
   assert.match(receipt.text, /Codex 预览任务/);
   assert.equal((await ctx.sessionPersistence.list()).length, 0);
   const preview = await finish(receipt);

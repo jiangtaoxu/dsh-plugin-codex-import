@@ -95,7 +95,7 @@ export function catalogProjects(items) {
   return [...groups.values()].sort((a, b) => b.count - a.count || a.path.localeCompare(b.path));
 }
 
-export function ImportBrowser({ loadCatalog, openSession, refreshSessions, enableSidebar }) {
+export function ImportBrowser({ loadCatalog, openSession, refreshSessions, enableSidebar, openImport }) {
   const [state, setState] = React.useState({ items: [], loading: true, total: 0, processed: 0, errors: [] });
   const [error, setError] = React.useState('');
   const [query, setQuery] = React.useState('');
@@ -125,6 +125,7 @@ export function ImportBrowser({ loadCatalog, openSession, refreshSessions, enabl
   return h('main', { className: 'codex-browser', 'aria-label': 'Codex 导入项目与对话' },
     h('header', { className: 'codex-browser-header' },
       h('div', null, h('h1', null, state.items.some(row => row.sourceKind === 'chatgpt') ? 'Codex / ChatGPT 导入目录' : 'Codex 导入目录'), h('p', { className: 'codex-muted' }, `按来源与项目浏览 · ${projects.length} 个分组 · ${state.items.length} 条会话`)),
+      openImport && h('button', { type: 'button', className: 'codex-button', onClick: openImport }, '导入对话'),
       enableSidebar && h('button', { type: 'button', className: 'codex-button', onClick: enableSidebar }, '使用导入目录侧栏'),
       h('button', { type: 'button', className: 'codex-button', onClick: () => { setState(old => ({ ...old, loading: true })); setGeneration(value => value + 1); } }, '刷新目录')),
     h('div', { className: 'codex-browser-search' },
@@ -166,7 +167,7 @@ const PRESENTATION_CSS = `
 `;
 
 /** All UI extensions use Harness's registered slots and Conversation Definitions. */
-export function installPresentation(ctx) {
+export function installPresentation(ctx, { openImport } = {}) {
   installLongMessages(ctx);
   const style = document.createElement('style'); style.textContent = PRESENTATION_CSS + QUESTION_REPLY_CSS + CODEX_SIDEBAR_CSS + LONG_MESSAGE_CSS;
   document.head.append(style); ctx.effect(() => () => style.remove());
@@ -182,7 +183,7 @@ export function installPresentation(ctx) {
     return response.json();
   };
   const refreshSessions = () => ctx.sessions?.refresh?.();
-  const sidebar = installImportedSidebar(ctx, { loadCatalog, refreshSessions, openSession: id => ctx.uiWorkspace.openSession(id), filterCatalog, catalogProjects });
+  const sidebar = installImportedSidebar(ctx, { loadCatalog, refreshSessions, openImport, openSession: id => ctx.uiWorkspace.openSession(id), filterCatalog, catalogProjects });
   // Also refresh the existing native sidebar after the startup cache warmup.
   if (ctx.sessions) ctx.effect(() => {
     const control = new AbortController(); let timer;
@@ -198,7 +199,7 @@ export function installPresentation(ctx) {
     return () => { control.abort(); clearTimeout(timer); };
   });
   ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL,
-    inject: () => ({ loadCatalog, refreshSessions, openSession: id => ctx.uiWorkspace.openSession(id), enableSidebar: sidebar?.enable }),
+    inject: () => ({ loadCatalog, refreshSessions, openImport, openSession: id => ctx.uiWorkspace.openSession(id), enableSidebar: sidebar?.enable }),
   }, ImportBrowser));
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist', id: PANEL, order: 20, label: 'Codex 导入目录',

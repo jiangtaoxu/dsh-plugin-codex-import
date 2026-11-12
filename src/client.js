@@ -1,5 +1,6 @@
 import { attachmentSummaryText, createAttachmentDetails } from './attachment-details.js';
 import { installPresentation } from './presentation.js';
+import { createImportWizard } from './import-wizard.js';
 
 export const name = 'codex-import-results';
 export const inject = ['commandUi', 'jobs', 'remote', 'remote.commands', 'slots', 'uiConversation', 'sessions', 'workspaces', 'uiWorkspace', 'layout'];
@@ -23,7 +24,8 @@ export function latestProgress(text) {
 
 /** Observe Harness jobs without adding polling commands or model messages. */
 export function apply(ctx) {
-  const presentation = installPresentation(ctx);
+  let openImport;
+  const presentation = installPresentation(ctx, { openImport: () => openImport?.() });
   const refreshedJobs = new Set();
   const element = (tag, label) => {
     const node = document.createElement(tag);
@@ -80,10 +82,27 @@ export function apply(ctx) {
   importButton.type = 'button'; importButton.textContent = '确认导入';
   importButton.style.cssText = 'padding:9px 18px;border:0;border-radius:8px;background:#5146db;color:white;font:inherit;cursor:pointer;';
   importConfirmation.append(importScope, importButton);
+  const backButton = element('button', '更换来源或文件'); backButton.type = 'button'; backButton.textContent = '更换来源或文件'; backButton.hidden = true;
+  backButton.style.cssText = 'margin-top:10px;padding:8px 16px;border:1px solid #d8d4f3;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer;';
   const attachmentButton = element('button', '查看附件明细');
   attachmentButton.type = 'button'; attachmentButton.textContent = '查看附件统计与明细';
   attachmentButton.style.cssText = 'margin-top:12px;padding:8px 16px;border:1px solid #d8d4f3;border-radius:8px;background:#f7f6ff;color:#393075;font:inherit;cursor:pointer;';
-  dialog.append(heading, progress, summary, current, importConfirmation, attachmentButton, output, confirmation, actions);
+  let controlSessionId;
+  const wizard = createImportWizard({ element,
+    async getSession(owner) {
+      if (owner) return owner;
+      if (!ctx.sessions?.create) throw new Error('请在普通会话中执行 /codex-import preview 打开导入窗口。');
+      controlSessionId ||= await ctx.sessions.create(); return controlSessionId;
+    },
+    async onPreview(owner, options) {
+      const response = await ctx.remote.commands.execute(owner, `/codex-import preview ${JSON.stringify(options)}`, []);
+      if (!response.ok) throw new Error(response.error.message);
+      const result = response.value?.result;
+      if (!result || result.kind === 'error') throw new Error(result?.text || '未能开始预览，请重试');
+      handleResult(owner, 'codex-import', result);
+    },
+  });
+  dialog.append(heading, wizard.node, progress, summary, current, importConfirmation, backButton, attachmentButton, output, confirmation, actions);
   document.body.append(dialog);
   const attachmentDetails = createAttachmentDetails(attachmentButton);
   let tracking;
@@ -113,6 +132,18 @@ export function apply(ctx) {
     if (!dialog.open) dialog.showModal();
     close.focus();
   };
+  openImport = async () => {
+    if (tracking && !cancel.hidden) { render(); show(); return; }
+    const owner = tracking?.sessionId;
+    if (owner) {
+      try {
+        const result = await ctx.remote.commands.execute(owner, '/codex-import preview', []);
+        if (!result.ok) throw new Error(result.error.message);
+        if (!result.value) throw new Error('无法打开导入向导');
+        handleResult(owner, 'codex-import', result.value.result);
+      } catch (error) { output.textContent = error.message; }
+    } else handleResult(undefined, 'codex-import', { kind: 'success', text: 'Codex 导入向导' });
+  };
   const render = () => {
     if (!tracking || disposed) return;
     const state = ctx.jobs.state.getSnapshot();
@@ -128,6 +159,7 @@ export function apply(ctx) {
     const mode = data?.mode || tracking.mode;
     const cleanup = mode?.startsWith('delete');
     const preview = mode === 'preview';
+    backButton.hidden = !preview || !finished;
     attachmentDetails.update(cleanup ? undefined : data?.attachmentAudit);
     output.style.maxHeight = preview && finished ? '12vh' : '40vh';
     heading.textContent = cleanup
@@ -178,6 +210,7 @@ export function apply(ctx) {
     if (importProposal) {
       const p = importProposal;
       importScope.textContent = `确认导入本次已检查的 ${p.count} 条会话（有正文 ${p.withBody}，仅索引 ${p.metadataOnly}）。\n来源：${p.sourceHome}\n目标：${p.groupByProject ? `现有原项目 ${p.destinationSummary?.originalSessions ?? '—'} 条；无有效原目录 ${p.destinationSummary?.fallbackSessions ?? '—'} 条 → ${p.destinationPath}` : `${p.workspaceTitle}（${p.destinationPath}）`}\n${p.importAttachments ? attachmentSummaryText(data?.attachmentAudit || p.attachmentAudit, p) : '本次不复制附件'}\n${p.sourceKind === 'chatgpt' ? '确认时校验导出包内容；归档变化需要重新预览。' : '确认后读取上述会话的最新内容。'}工作目录按本次预览锁定，原目录变化需重新预览。${p.syncExisting === false ? '本次使用独立快照模式；相同快照跳过，来源或附件变化时创建新副本。' : '同目录的已有副本增量追加，保留原消息与 Harness 续聊；修订单独标记，未变化跳过，打开或占用的会话稍后重试。'}\n确认有效期至 ${new Date(p.expiresAt).toLocaleTimeString()}。`;
+      importButton.textContent = `确认导入 ${p.count} 条对话`;
       importButton.disabled = importing || Date.now() > p.expiresAt;
     }
     close.textContent = importProposal ? '暂不导入' : finished ? '关闭' : '后台运行';
@@ -188,13 +221,14 @@ export function apply(ctx) {
     }
     if (terminal) { clearInterval(timer); timer = undefined; }
   };
-  const onClose = () => { dialog.close(); if (cancel.hidden) { release(); tracking = undefined; } };
+  const onClose = () => { if (!wizard.node.hidden) wizard.cancel(); dialog.close(); if (cancel.hidden) { release(); tracking = undefined; } };
   const onCancel = async () => {
     if (!tracking || cancelling) return;
     cancelling = true; render();
     try {
       const result = await ctx.jobs.kill(tracking.sessionId, tracking.id);
       if (!result.ok) { cancelling = false; output.textContent = `取消失败：${result.error.message}`; cancel.disabled = false; }
+      else wizard.discardUpload();
     } catch (error) { cancelling = false; output.textContent = `取消失败：${error.message}`; cancel.disabled = false; }
   };
   const onConfirm = async () => {
@@ -224,25 +258,39 @@ export function apply(ctx) {
     finally { importing = false; }
   };
   close.addEventListener('click', onClose);
+  const onDialogCancel = event => { event.preventDefault(); onClose(); };
+  dialog.addEventListener('cancel', onDialogCancel);
   cancel.addEventListener('click', onCancel);
   includeContinued.addEventListener('change', updateChoice);
   confirmationInput.addEventListener('input', updateChoice);
   deleteButton.addEventListener('click', onConfirm);
   importButton.addEventListener('click', onImport);
+  backButton.addEventListener('click', openImport);
   ctx.effect(() => () => {
-    disposed = true; release(); attachmentDetails.dispose();
+    disposed = true; release(); attachmentDetails.dispose(); wizard.dispose();
     close.removeEventListener('click', onClose);
+    dialog.removeEventListener('cancel', onDialogCancel);
     cancel.removeEventListener('click', onCancel);
     includeContinued.removeEventListener('change', updateChoice);
     confirmationInput.removeEventListener('input', updateChoice);
     deleteButton.removeEventListener('click', onConfirm);
     importButton.removeEventListener('click', onImport);
+    backButton.removeEventListener('click', openImport);
     dialog.remove();
   });
   const handleResult = (sessionId, commandName, result) => {
     if (commandName !== 'codex-import') return;
+    if (result.kind !== 'error' && result.text?.startsWith('Codex 导入向导')) {
+      release(); tracking = undefined; cancelling = false; importProposal = undefined; proposal = undefined;
+      importConfirmation.hidden = true; confirmation.hidden = true; backButton.hidden = true;
+      progress.hidden = true; summary.textContent = ''; current.textContent = ''; output.textContent = ''; output.hidden = true;
+      attachmentDetails.update(undefined); cancel.hidden = true; close.textContent = '取消'; heading.textContent = '导入对话';
+      void wizard.open(sessionId); show(); return;
+    }
     const id = /任务编号：(codex-import-[a-f0-9]+)/.exec(result.text || '')?.[1];
     if (id) {
+      wizard.hide(); output.hidden = false;
+      if (!result.text?.includes('预览任务') && !result.text?.includes('清理')) wizard.forgetUpload();
       release(); cancelling = false; attachmentDetails.update(undefined);
       proposal = undefined; confirmation.hidden = true;
       importProposal = undefined; importConfirmation.hidden = true;
@@ -256,6 +304,7 @@ export function apply(ctx) {
     }
     if (tracking && !cancel.hidden) return; // Keep a running job's progress visible.
     release(); tracking = undefined; attachmentDetails.update(undefined);
+    wizard.hide(); output.hidden = false; backButton.hidden = true;
     proposal = undefined; confirmation.hidden = true;
     importProposal = undefined; importConfirmation.hidden = true;
     progress.hidden = true; summary.textContent = ''; current.textContent = ''; cancel.hidden = true;
