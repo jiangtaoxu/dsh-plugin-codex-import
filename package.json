@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-codex-import",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Import and incrementally sync local Codex conversations into DeepSeek Harness, preserving continued chats and attachments",
   "type": "module",
   "license": "MIT",
@@ -82,7 +82,8 @@
     "@deepseek-ai/dsh-storage-json": "0.2.2-rc.1",
     "@deepseek-ai/dsh-storage-domain": "0.2.2-rc.1",
     "@deepseek-ai/dsh-attachment-local": "0.2.2-rc.1",
-    "@deepseek-ai/dsh-llm": "0.2.2-rc.1"
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.2-rc.1"
   },
   "repository": {
     "type": "git",

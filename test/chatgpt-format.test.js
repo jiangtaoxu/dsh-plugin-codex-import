@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { normalizeChatGPTText } from '../src/chatgpt-format.js';
 import { projectChatGPT } from '../src/chatgpt-source.js';
 import { readableChatGPTNode, ReadableChatGPTAssistant, installReadableChatGPT } from '../src/chatgpt-presentation.js';
+import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots';
 
 const sessionId = `chatgpt-${'a'.repeat(24)}-${'b'.repeat(24)}`;
 const rich = `Before\n\n<box gap={3}>
@@ -122,14 +123,73 @@ test('existing imported messages are fixed in the native view without touching l
   assert.doesNotMatch(html, /&lt;box|GenUI/); assert.equal(received.loadImage, 'native-image-loader'); assert.equal(received.sessionId, sessionId);
 });
 
-test('native assistant slot keeps locale, injection hooks and child slots during decoration', () => {
-  let callback, registration;
-  const nativeAssistant = () => null;
-  const native = { options: { name: 'conversation.chat.node', key: 'assistant-step', priority: 0, locale: 'native-chat', children: { 'conversation.chat.message.images': { kind: 'single', scope: 'session' } },
-    inject: id => ({ resolveFilePath: id, hooks: { presentation: 'native' } }) }, component: nativeAssistant };
-  installReadableChatGPT({ slots: { entries: () => [native], inject: (_slot, fn) => { callback = fn; }, register: (options, component) => { registration = { options, component }; } } });
-  callback(); const injected = registration.options.inject('current-session');
-  assert.equal(registration.component, ReadableChatGPTAssistant); assert.equal(registration.options.locale, native.options.locale);
-  assert.equal(registration.options.children, native.options.children); assert.equal(injected.hooks.presentation, 'native');
-  assert.equal(injected.resolveFilePath, 'current-session'); assert.equal(injected.nativeAssistant, nativeAssistant);
+test('real Harness SlotCore elects adapter, preserves normalized injection and avoids duplicate child declarations', () => {
+  const core = new SlotCore(), factories = [];
+  core.register({ name: 'root', children: { 'conversation.chat.node': { kind: 'keyed', scope: 'session' } } }, () => null);
+  const nativeAssistant = props => {
+    assert.equal(props.t('title'), 'native-chat:title');
+    assert.equal(props.usePresentation(), 'native-policy');
+    assert.equal(props.resolveFilePath, sessionId);
+    return React.createElement('section', null, props.node.data.blocks[0].text,
+      props.renderSlot('conversation.chat.reasoning.body', { text: 'reasoning' }),
+      props.renderSlot('conversation.chat.message.images', { images: ['original-image'] }));
+  };
+  core.register({ name: 'conversation.chat.node', key: 'assistant-step', locale: 'native-chat',
+    children: { 'conversation.chat.message.images': { kind: 'single', scope: 'session' }, 'conversation.chat.reasoning.body': { kind: 'single', scope: 'session' } },
+    inject: id => ({ resolveFilePath: id, hooks: { presentation: { getSnapshot: () => 'native-policy', subscribe() {} } } }) }, nativeAssistant);
+  const native = core.entries('conversation.chat.node')[0];
+  assert.equal(native.options.inject, undefined); assert.equal(native.options.locale, undefined);
+  let dispose;
+  installReadableChatGPT({ slots: { entries: key => core.entries(key), inject: (_slot, fn) => { dispose = fn(); }, register: (...args) => core.register(...args) } });
+  const selected = core.entriesOfSlot('conversation.chat.node')[0], injected = selected.inject(sessionId);
+  assert.equal(selected.component, ReadableChatGPTAssistant); assert.equal(selected.locale, native.locale);
+  assert.equal(selected.children, undefined); assert.equal(core.spec('conversation.chat.message.images').scope, 'session');
+  assert.equal(injected.nativeAssistant, nativeAssistant);
+  const { hooks, ...props } = injected;
+  const html = renderToStaticMarkup(React.createElement(selected.component, { ...props, sessionId,
+    node: { kind: 'assistant-step', data: { blocks: [{ kind: 'text', text: rich }], finalNode: { messageId: 'codex-message-original' } } },
+    usePresentation: hooks.presentation.getSnapshot, t: key => `${selected.locale}:${key}`,
+    renderFactorySlot: (name, owner) => { factories.push({ name, owner }); return null; } }));
+  assert.doesNotMatch(html, /&lt;box|&lt;Cite/);
+  assert.deepEqual(factories, [{ name: 'conversation.chat.reasoning.content', owner: { text: 'reasoning' } }, { name: 'conversation.images.content', owner: { images: ['original-image'] } }]);
+  assert.equal(core.entriesOfSlot('conversation.chat.node')[0], selected);
+  dispose(); assert.equal(core.entriesOfSlot('conversation.chat.node')[0], native);
+});
+
+test('single and array citations keep separate IDs, repeats and explicit links', () => {
+  const input = 'One.<Cite ref="turn3search1"/> Two.<Cite refs={\n ["turn4search12", "turn4search19"]\n}/>'
+    + ' Repeat.<Cite refs={["turn4search19"]}/><MemoryCite ref={"memory0"}/>';
+  const result = normalizeChatGPTText(input, { content_references: [{ ref_id: 'turn4search12', url: 'https://example.com/twelve' }] });
+  assert.equal(result.unresolvedCitations, 3);
+  assert.match(result.text, /Two\.\[来源\]\(<https:\/\/example.com\/twelve>\)〔来源 2〕/);
+  assert.match(result.text, /Repeat\.〔来源 2〕〔来源 3〕/); assert.doesNotMatch(result.text, /<Cite|<MemoryCite|turn4search/);
+  assert.equal(normalizeChatGPTText(result.text).text, result.text);
+  const unsafe = normalizeChatGPTText('<Cite data={(() => { throw "ref=\\"fake\\"" })()} refs={["actual"]}/>');
+  assert.equal(unsafe.unresolvedCitations, 1); assert.doesNotMatch(unsafe.text, /fake|actual|data=|<Cite/);
+});
+
+test('standalone styled text, badges, links, charts and suggestions need no containing box', () => {
+  const result = normalizeChatGPTText('<text color="secondary" size="xs">Complete text.</text>\n<badge color="success">Status</badge>\n'
+    + '<Link url="https://example.com/" title="Source"/>\n'
+    + '<Chart content={{"meta":{"title":"History"},"series":[{"dataKey":"count","label":"Count"}],"data":[{"month":"Jan","count":42}]}}/>\n'
+    + '<SuggestAutomation label="Check later"/>');
+  assert.doesNotMatch(result.text, /<\/?(?:text|badge|Link|Chart|SuggestAutomation)\b|content=|dataKey/);
+  assert.match(result.text, /Complete text\./); assert.match(result.text, /Status/); assert.match(result.text, /\[Source\]\(<https:\/\/example.com\/>\)/);
+  assert.match(result.text, /原图表：History/); assert.match(result.text, /\| month \| Count \|/); assert.match(result.text, /\| Jan \| 42 \|/);
+  assert.match(result.text, /Check later；未创建自动化任务/);
+  assert.equal(normalizeChatGPTText(result.text).text, result.text);
+});
+
+test('HTML line breaks become readable separators while code literals remain exact', () => {
+  const input = 'First<br/>Second\n\n| Heading | Value |\n|---|---|\n| a<br>b | 1 |\n\n`<br/>`\n```html\n<br>\n```';
+  const result = normalizeChatGPTText(input);
+  assert.match(result.text, /^First\nSecond/); assert.match(result.text, /\| a · b \| 1 \|/);
+  assert.match(result.text, /`<br\/>`/); assert.ok(result.text.endsWith('```html\n<br>\n```'));
+});
+
+test('standalone captions and unavailable entity expressions have readable static fallbacks', () => {
+  const result = normalizeChatGPTText('<caption>Original caption</caption>\n<Entity ref="turn0business0" value={turn0business0.name}/>');
+  assert.match(result.text, /Original caption/); assert.match(result.text, /导出缺少可解析的名称/);
+  assert.doesNotMatch(result.text, /<caption|<Entity|turn0business0/);
+  assert.equal(normalizeChatGPTText(result.text).text, result.text);
 });

@@ -174,7 +174,7 @@ export class ChatGPTSource {
       active: order.has(key), order: order.get(key) ?? -1, item: mapping[key] }));
     const snapshot = { thread: { ...publicThread, chatgpt: metadata }, createdAt: thread.created_at_ms, mode: 'chatgpt', turns: [], records, supplemental: [],
       source: { kind: 'chatgpt', sourceId: this.home, archivePath: this.path }, archive: this.archive, resolveAsset: asset => this.resolveAsset(asset), skipLocationNotice: true };
-    snapshot.fingerprint = digest({ metadata: snapshot.thread, records, presentationFormat: 1 });
+    snapshot.fingerprint = digest({ metadata: snapshot.thread, records, presentationFormat: 2 });
     return snapshot;
   }
 

@@ -1,5 +1,5 @@
 const CHATGPT_FORMAT_LIMIT = 2 * 1024 * 1024;
-const CHATGPT_LAYOUT_TAGS = new Set(['box', 'row', 'grid', 'grid-item', 'stack', 'card', 'text', 'title', 'icon', 'badge', 'divider', 'form', 'radio-group', 'radio', 'checkbox-group', 'checkbox', 'button', 'input', 'textarea', 'select', 'option', 'label', 'slider', 'table', 'table-row', 'table-cell', 'caption', 'Link', 'AsyncImage', 'Chart']);
+const CHATGPT_LAYOUT_TAGS = new Set(['box', 'row', 'grid', 'grid-item', 'stack', 'card', 'text', 'title', 'icon', 'badge', 'divider', 'form', 'radio-group', 'radio', 'checkbox-group', 'checkbox', 'button', 'input', 'textarea', 'select', 'option', 'label', 'slider', 'table', 'table-row', 'table-cell', 'caption', 'Link', 'AsyncImage', 'Chart', 'Callout', 'SuggestAutomation']);
 const CHATGPT_BLOCK_TAGS = new Set(['box', 'row', 'grid', 'grid-item', 'stack', 'card', 'form', 'radio-group', 'checkbox-group', 'select', 'table', 'table-row', 'caption']);
 
 function chatGPTSafeUrl(value) {
@@ -50,9 +50,37 @@ function chatGPTTagAt(value, start) {
   return undefined;
 }
 function chatGPTAttribute(tag, name) {
-  const expression = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|\\{\\s*"([^"]*)"\\s*\\}|([^\\s>]+))`);
-  const match = expression.exec(tag.source);
-  return match ? (match[1] ?? match[2] ?? match[3] ?? match[4]).replace(/\/$/, '') : undefined;
+  // Skip complete expressions so ref="..." inside a different attribute cannot
+  // become a false citation. Braced JSON is data, never executable JavaScript.
+  const source = tag.source; let cursor = /^<\/?[\w-]+/.exec(source)[0].length;
+  while (cursor < source.length) {
+    const attribute = /^\s+([\w-]+)(\s*=\s*)?/.exec(source.slice(cursor));
+    if (!attribute) break;
+    cursor += attribute[0].length;
+    if (!attribute[2]) continue;
+    const start = cursor, char = source[cursor]; let value;
+    if (char === '{') {
+      const end = chatGPTDirectiveEnd(source, cursor);
+      if (!end) return undefined;
+      const literal = source.slice(cursor + 1, end - 1).trim();
+      try { value = JSON.parse(literal); } catch { value = chatGPTStringLiteral(literal); }
+      cursor = end;
+    } else if (char === '"' || char === "'") {
+      cursor++;
+      while (cursor < source.length && source[cursor] !== char) { if (source[cursor] === '\\') cursor++; cursor++; }
+      value = chatGPTStringLiteral(source.slice(start, ++cursor));
+    } else {
+      const bare = /^[^\s>]+/.exec(source.slice(cursor))?.[0];
+      if (!bare) return undefined;
+      value = bare.replace(/\/$/, ''); cursor += bare.length;
+    }
+    if (attribute[1] === name) return value;
+  }
+}
+function chatGPTStringLiteral(value) {
+  if (!/^(["'])[\s\S]*\1$/.test(value)) return undefined;
+  if (value[0] === '"') { try { return JSON.parse(value); } catch { return undefined; } }
+  return value.slice(1, -1).replace(/\\(?:u([\da-fA-F]{4})|([\s\S]))/g, (_, hex, char) => hex ? String.fromCharCode(parseInt(hex, 16)) : ({ n: '\n', r: '\r', t: '\t' }[char] ?? char));
 }
 function chatGPTDirectiveEnd(text, start) {
   let depth = 0, quote, escaped = false;
@@ -105,13 +133,29 @@ function chatGPTStaticWidget(kind, payload) {
   return undefined;
 }
 
+function chatGPTStaticChart(content, title) {
+  const label = typeof title === 'string' ? title : typeof content?.meta?.title === 'string' ? content.meta.title : '';
+  let result = `\n\n〔原图表${label ? '：' + chatGPTEscape(label) : ''}〕`;
+  if (typeof content?.meta?.description === 'string') result += '\n\n' + chatGPTEscape(content.meta.description);
+  if (Array.isArray(content?.data) && content.data.length && content.data.every(row => row && typeof row === 'object' && !Array.isArray(row))) {
+    const keys = [...new Set(content.data.flatMap(Object.keys))];
+    if (keys.length * content.data.length > 10000) return result + '\n\n```json\n' + JSON.stringify(content.data, null, 2) + '\n```\n\n';
+    const cell = value => chatGPTEscape(typeof value === 'object' ? JSON.stringify(value) : value).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+    const labels = new Map((Array.isArray(content.series) ? content.series : []).filter(s => s && typeof s.dataKey === 'string').map(s => [s.dataKey, s.label || s.dataKey]));
+    result += '\n\n| ' + keys.map(k => cell(labels.get(k) || k)).join(' | ') + ' |\n| ' + keys.map(() => '---').join(' | ') + ' |';
+    for (const row of content.data) result += '\n| ' + keys.map(k => cell(row[k] ?? '')).join(' | ') + ' |';
+  }
+  return result + '\n\n';
+}
+
 /** Read-only Markdown projection of ChatGPT-specific rich text. No exported JS/HTML is executed. */
 export function normalizeChatGPTText(value, metadata = {}) {
   if (typeof value !== 'string' || value.length > CHATGPT_FORMAT_LIMIT) return { text: value, changed: false };
   const protectedCode = chatGPTProtectCode(value);
   if (!protectedCode) return { text: value, changed: false };
   let input = protectedCode.text;
-  const hasLayout = /<(?:box|row|grid|grid-item|radio-group|checkbox-group)\b|\{@body\b/.test(input);
+  // Styled text, links and charts can appear without a containing box.
+  const hasLayout = /<(?:box|row|grid|grid-item|radio-group|checkbox-group|caption|Link|AsyncImage|Chart|Callout|SuggestAutomation)\b|<(?:text|badge)\s+(?:color|weight|size)=|\{@body\b/.test(input);
   const links = chatGPTCitationLinks(metadata), unresolved = new Map();
   const citation = ids => ids.split(/[\s,]+/).filter(id => id && !/^L\d+(?:-L?\d+)?$/.test(id)).map(id => {
     const url = links.get(id);
@@ -155,11 +199,25 @@ export function normalizeChatGPTText(value, metadata = {}) {
     }
     const tag = chatGPTTagAt(input, next);
     if (!tag) { output += input[next]; cursor = next + 1; continue; }
-    if (tag.name === 'Cite' || tag.name === 'MemoryCite') { if (!tag.close) output += citation(chatGPTAttribute(tag, 'ref') || 'unknown'); cursor = tag.end; continue; }
+    if (tag.name === 'br') {
+      // Markdown tables cannot contain physical newlines inside a cell.
+      const start = input.lastIndexOf('\n', next - 1) + 1, line = input.slice(start, input.indexOf('\n', next) < 0 ? input.length : input.indexOf('\n', next));
+      output += line.trimStart().startsWith('|') ? ' · ' : '\n'; cursor = tag.end; continue;
+    }
+    if (tag.name === 'Cite' || tag.name === 'MemoryCite') {
+      if (!tag.close) {
+        const ref = chatGPTAttribute(tag, 'ref'), refs = chatGPTAttribute(tag, 'refs');
+        const ids = [ref, ...(Array.isArray(refs) ? refs : [refs])].filter(id => typeof id === 'string' && id.trim());
+        output += citation(ids.join(' ') || 'unknown');
+      }
+      cursor = tag.end; continue;
+    }
     if (tag.name === 'Entity' && tag.close) { cursor = tag.end; continue; }
     if (tag.name === 'Entity' && !tag.close) {
       const name = chatGPTAttribute(tag, 'value') || chatGPTAttribute(tag, 'name');
-      if (name) { output += chatGPTEscape(name); const location = chatGPTAttribute(tag, 'location'); if (location) output += `（${chatGPTEscape(location)}）`; cursor = tag.end; continue; }
+      if (typeof name === 'string' && name) { output += chatGPTEscape(name); const location = chatGPTAttribute(tag, 'location'); if (typeof location === 'string' && location) output += `（${chatGPTEscape(location)}）`; }
+      else output += '〔原实体信息：导出缺少可解析的名称〕';
+      cursor = tag.end; continue;
     }
     if (!hasLayout || !CHATGPT_LAYOUT_TAGS.has(tag.name)) { output += tag.source; cursor = tag.end; continue; }
     layoutChanged = true;
@@ -174,7 +232,7 @@ export function normalizeChatGPTText(value, metadata = {}) {
       else if (tag.name === 'table-row') {
         output += '\n'; const table = stack.findLast(s => s.name === 'table');
         if (table && !table.rows++) output += '| ' + Array(context?.cells || 1).fill('---').join(' | ') + ' |\n';
-      } else if (isBlock || ['radio', 'checkbox', 'option', 'button', 'label', 'title'].includes(tag.name)) output += '\n\n';
+      } else if (isBlock || ['radio', 'checkbox', 'option', 'button', 'label', 'title', 'Callout'].includes(tag.name)) output += '\n\n';
     } else {
       const lineStart = input.lastIndexOf('\n', next - 1) + 1;
       const indentation = /^[ \t]*/.exec(input.slice(lineStart, next))[0].length;
@@ -191,7 +249,9 @@ export function normalizeChatGPTText(value, metadata = {}) {
       else if (tag.name === 'AsyncImage') {
         const label = chatGPTEscape(chatGPTAttribute(tag, 'alt') || '原图片内容'), imageUrl = chatGPTSafeUrl(chatGPTAttribute(tag, 'src'));
         output += imageUrl ? `[${label}](<${imageUrl}>)` : `〔${label}〕`;
-      } else if (tag.name === 'Chart') output += `〔原图表${chatGPTAttribute(tag, 'title') ? '：' + chatGPTEscape(chatGPTAttribute(tag, 'title')) : ''}〕`;
+      } else if (tag.name === 'Chart') output += chatGPTStaticChart(chatGPTAttribute(tag, 'content'), chatGPTAttribute(tag, 'title'));
+      else if (tag.name === 'SuggestAutomation') output += `\n\n〔原自动化建议${chatGPTAttribute(tag, 'label') ? '：' + chatGPTEscape(chatGPTAttribute(tag, 'label')) : ''}；未创建自动化任务〕\n\n`;
+      else if (tag.name === 'Callout') output += '\n\n';
       else if (tag.name === 'slider') output += '〔原滑块控件〕';
       if (tag.name === 'divider') output += '\n\n---\n\n';
       else if (['radio', 'checkbox', 'option'].includes(tag.name)) output += '\n- ';

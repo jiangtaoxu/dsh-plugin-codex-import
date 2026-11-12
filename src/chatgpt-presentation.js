@@ -16,19 +16,31 @@ export function readableChatGPTNode(node, sessionId) {
   return { ...node, data: { ...node.data, blocks, finalNode: { ...node.data.finalNode, blocks } } };
 }
 
-export function ReadableChatGPTAssistant({ nativeAssistant, node, sessionId, ...props }) {
+export function ReadableChatGPTAssistant({ nativeAssistant, node, sessionId, renderFactorySlot, ...props }) {
   const readable = React.useMemo(() => readableChatGPTNode(node, sessionId), [node, sessionId]);
-  return React.createElement(nativeAssistant, { ...props, node: readable, sessionId });
+  // The original entry owns its child-slot declarations; redeclaring them on a
+  // shadow entry is rejected by SlotCore. Delegate to the same native factories
+  // that the built-in reasoning/image child components use instead.
+  const renderSlot = React.useCallback((name, owner) => {
+    if (name === 'conversation.chat.reasoning.body') return renderFactorySlot('conversation.chat.reasoning.content', owner);
+    if (name === 'conversation.chat.message.images') return renderFactorySlot('conversation.images.content', owner);
+    throw new Error(`Unsupported native assistant child slot: ${name}`);
+  }, [renderFactorySlot]);
+  return React.createElement(nativeAssistant, { ...props, node: readable, sessionId, renderSlot, renderFactorySlot });
 }
 
-/** Preserve the native slot's injection, locale, child slots, images and reasoning hooks. */
+/** Keep the native assistant, injected policy hooks, locale and media factories. */
 export function installReadableChatGPT(ctx) {
   if (!ctx.slots.entries) return;
   ctx.slots.inject('conversation.chat.node', () => {
     const native = ctx.slots.entries('conversation.chat.node').find(entry => entry.options.key === 'assistant-step' && entry.component !== ReadableChatGPTAssistant);
     if (!native) return;
+    // entries() returns normalized entries: rendering contracts live beside options,
+    // which contains only election fields. Losing these makes the native renderer
+    // crash and silently abdicate this entry in favor of the undecorated assistant.
     return ctx.slots.register({ ...native.options, name: 'conversation.chat.node', key: 'assistant-step', priority: (native.options.priority ?? 0) - 10,
-      inject: (...args) => ({ ...native.options.inject?.(...args), nativeAssistant: native.component }),
+      locale: native.locale, store: native.store,
+      inject: (...args) => ({ ...native.inject?.(...args), nativeAssistant: native.component }),
     }, ReadableChatGPTAssistant);
   });
 }
