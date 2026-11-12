@@ -26,6 +26,7 @@ flowchart TD
 | `src/archive.js`、`chatgpt-source.js` | ZIP/目录只读访问、大小/路径/CRC 校验、ChatGPT 分片发现、父节点路径与原始分支保留 |
 | `src/import-wizard.js`、`uploads.js` | 来源选择、ZIP 拖放/选择、Codex 目录发现、认证流式暂存、文件编号与生命周期清理 |
 | `src/chatgpt-media.js` | ChatGPT 归档附件解析、文件头识别、原生图片与文件保存 |
+| `src/chatgpt-format.js`、`chatgpt-presentation.js` | 纯文本富排版整理、明确 ID 引用转换、代码保护，以及委托原生助手组件显示旧导入记录 |
 | `src/overlap.js`、`scripts/audit-chatgpt.mjs` | 精确文本重合提示及本机 Codex/dsh 只读对比；不按内容自动合并 |
 | `src/destinations.js` | 原项目 / 回退工作目录规划及确认时目录身份校验 |
 | `src/media.js` | 明确附件识别、内嵌图片恢复、原生附件准入及复制 |

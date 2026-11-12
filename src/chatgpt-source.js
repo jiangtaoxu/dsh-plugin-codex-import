@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import { ExportArchive } from './archive.js';
 import { digest } from './source.js';
+import { normalizeChatGPTText } from './chatgpt-format.js';
 
 const text = value => ({ type: 'text', text: String(value ?? '') });
 const ms = value => typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.trunc(value * 1000)) : 0;
@@ -42,7 +43,7 @@ export function projectChatGPT(record) {
     content.push(text(`[ChatGPT ${asset.kind === 'image' ? '图片' : '附件'}：${assetName(asset)}]`));
   };
   const part = value => {
-    if (typeof value === 'string') { content.push(text(value)); return; }
+    if (typeof value === 'string') { content.push(text(role === 'assistant' ? normalizeChatGPTText(value, message.metadata).text : value)); return; }
     if (!object(value)) { content.push(text(`[ChatGPT 未知内容]\n${JSON.stringify(value)}`)); return; }
     switch (value.content_type) {
       case 'image_asset_pointer': addAsset({ pointer: value.asset_pointer, kind: 'image', mimeType: value.mime_type }); break;
@@ -173,7 +174,7 @@ export class ChatGPTSource {
       active: order.has(key), order: order.get(key) ?? -1, item: mapping[key] }));
     const snapshot = { thread: { ...publicThread, chatgpt: metadata }, createdAt: thread.created_at_ms, mode: 'chatgpt', turns: [], records, supplemental: [],
       source: { kind: 'chatgpt', sourceId: this.home, archivePath: this.path }, archive: this.archive, resolveAsset: asset => this.resolveAsset(asset), skipLocationNotice: true };
-    snapshot.fingerprint = digest({ metadata: snapshot.thread, records });
+    snapshot.fingerprint = digest({ metadata: snapshot.thread, records, presentationFormat: 1 });
     return snapshot;
   }
 

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { installLongMessages, LONG_MESSAGE_CSS } from './long-messages.js';
 import { installImportedSidebar, CODEX_SIDEBAR_CSS } from './sidebar.js';
 import { questionReplyRule, QuestionReplyView, QUESTION_REPLY_CSS } from './question-replies.js';
+import { installReadableChatGPT } from './chatgpt-presentation.js';
 
 const h = React.createElement;
 const PANEL = 'codex-import-browser';
@@ -168,6 +169,7 @@ const PRESENTATION_CSS = `
 
 /** All UI extensions use Harness's registered slots and Conversation Definitions. */
 export function installPresentation(ctx, { openImport } = {}) {
+  installReadableChatGPT(ctx);
   installLongMessages(ctx);
   const style = document.createElement('style'); style.textContent = PRESENTATION_CSS + QUESTION_REPLY_CSS + CODEX_SIDEBAR_CSS + LONG_MESSAGE_CSS;
   document.head.append(style); ctx.effect(() => () => style.remove());

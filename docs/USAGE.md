@@ -23,9 +23,11 @@ ZIP 使用文件流传输到宿主认证的插件接口，单个压缩包上限 
 
 ## ChatGPT 导出包导入
 
+v0.13.1 修复富文本显示：ChatGPT 的 `<box>`、`<row>`、表单和引用标记会整理为普通段落、列表、表格和静态选项。新导入时保留原始节点、只转换展示正文；升级插件后，已导入的 ChatGPT 助手消息也会通过 Harness 原生显示组件整理，无需删除或重新导入，原始历史日志不改写。用户粘贴的代码、围栏代码和行内代码保持原样，原交互表单不会执行。引用仅在导出元数据能明确匹配 ID 和网址时恢复链接，否则注明需回原对话核对。
+
 v0.12.0 起支持 ZIP 和解压后的目录，使用相同的预览与确认流程：
 
-下载 v0.13.0 发布包，或从源码运行 `npm ci`、`npm pack` 生成 `dsh-plugin-codex-import-0.13.0.tgz`，使用下方的第三方插件安装方式安装。
+下载 v0.13.1 发布包，或从源码运行 `npm ci`、`npm pack` 生成 `dsh-plugin-codex-import-0.13.1.tgz`，使用下方的第三方插件安装方式安装。
 
 ```text
 /codex-import preview {"source":"chatgpt","archivePath":"/absolute/path/export.zip"}
@@ -56,13 +58,13 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 
 ## 安装到 Harness 桌面版
 
-先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.13.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.13.0/dsh-plugin-codex-import-0.13.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
+先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.13.1.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.13.1/dsh-plugin-codex-import-0.13.1.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
 
 1. 打开左侧「插件」，点击「添加插件」旁的菜单，选择「安装第三方插件」。
 2. 在安装来源中输入本插件安装包的绝对路径。使用 npm 文件 spec 可以保留路径中的空格，例如：
 
    ```text
-   file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.13.0.tgz
+   file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.13.1.tgz
    ```
 
 3. 完成安装并启用插件。如果界面提示需要重启，重启 Harness。
@@ -115,7 +117,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 ```sh
 '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh' \
   plugin --profile desktop add \
-  'file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.13.0.tgz'
+  'file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.13.1.tgz'
 ```
 
 安装后重新打开应用。不要用 npm 安装的另一份 dsh 修改桌面版专用的 desktop profile。
@@ -123,7 +125,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 ## Web / npm 版安装
 
 ```sh
-dsh plugin --profile web add '/absolute/path/dsh-plugin-codex-import-0.13.0.tgz'
+dsh plugin --profile web add '/absolute/path/dsh-plugin-codex-import-0.13.1.tgz'
 dsh --profile web --dump-config
 dsh web
 ```
