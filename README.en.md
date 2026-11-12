@@ -6,7 +6,7 @@
 
 Import local Codex projects and conversations into **native Harness sessions**, then append later changes without replacing conversations continued in Harness.
 
-The current source also supports ChatGPT export ZIPs and extracted directories, including sharded conversations, selected branches, images, files, audio files and transcripts. See [ChatGPT import](docs/USAGE.md#chatgpt-导出包导入). This feature is not included in the linked v0.11.0 release; build from current source.
+The current source also supports ChatGPT export ZIPs and extracted directories, including sharded conversations, selected branches, images, files, audio files and transcripts. See [ChatGPT import](docs/USAGE.md#chatgpt-导出包导入). This feature is included in the v0.12.0 release.
 
 **Compatibility:** DeepSeek Harness **0.2.2-rc.1**, Node.js **24.9+**. Other Harness versions require compatibility testing. This is an independent community plugin, not affiliated with OpenAI or DeepSeek.
 
@@ -22,9 +22,9 @@ The current source also supports ChatGPT export ZIPs and extracted directories, 
 
 ## Download and install
 
-**[⬇ Download plugin v0.11.0](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)** · [All releases and checksums](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases)
+**[⬇ Download plugin v0.12.0](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.12.0/dsh-plugin-codex-import-0.12.0.tgz)** · [All releases and checksums](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases)
 
-Download `dsh-plugin-codex-import-0.11.0.tgz` from the release **Assets**. GitHub's automatic Source code archives are source snapshots, not installable plugin packages. Prebuilt downloads do not require a local Node.js installation or source build; Harness Desktop supplies its runtime.
+Download `dsh-plugin-codex-import-0.12.0.tgz` from the release **Assets**. GitHub's automatic Source code archives are source snapshots, not installable plugin packages. Prebuilt downloads do not require a local Node.js installation or source build; Harness Desktop supplies its runtime.
 
 <details>
 <summary>Developers: build from source</summary>
@@ -43,7 +43,7 @@ npm pack
 In Harness, open **Plugins → Install third-party plugin** and supply the absolute path:
 
 ```text
-file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz
+file:/absolute/path/dsh-plugin-codex-import-0.12.0.tgz
 ```
 
 Enable the plugin and restart if prompted. For macOS Desktop, fully quit Harness before using its bundled CLI:
@@ -51,13 +51,13 @@ Enable the plugin and restart if prompted. For macOS Desktop, fully quit Harness
 ```sh
 '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh' \
   plugin --profile desktop add \
-  'file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz'
+  'file:/absolute/path/dsh-plugin-codex-import-0.12.0.tgz'
 ```
 
 For the Web/npm edition, use its own CLI and profile:
 
 ```sh
-dsh plugin --profile web add 'file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz'
+dsh plugin --profile web add 'file:/absolute/path/dsh-plugin-codex-import-0.12.0.tgz'
 ```
 
 ## Usage
@@ -110,7 +110,7 @@ npm test
 npm pack --dry-run
 ```
 
-The current development source passed **120 local tests** using temporary fixtures and real Harness persistence, without model calls. See [testing](docs/TESTING.md), [architecture](docs/ARCHITECTURE.md), [contributing](CONTRIBUTING.md) and [security](SECURITY.md).
+The current version passed **120 local tests** using temporary fixtures and real Harness persistence, without model calls. See [testing](docs/TESTING.md), [architecture](docs/ARCHITECTURE.md), [contributing](CONTRIBUTING.md) and [security](SECURITY.md).
 
 ## License
 

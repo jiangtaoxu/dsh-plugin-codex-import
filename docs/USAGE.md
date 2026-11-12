@@ -8,9 +8,9 @@
 
 ## ChatGPT 导出包导入
 
-当前源码支持 ZIP 和解压后的目录，使用相同的预览与确认流程（v0.11.0 发布包尚不包含此功能）：
+v0.12.0 起支持 ZIP 和解压后的目录，使用相同的预览与确认流程：
 
-从当前源码运行 `npm ci`、`npm pack`，会生成 `dsh-plugin-codex-import-0.12.0-dev.0.tgz` 开发包，使用下方的第三方插件安装方式安装该开发包。
+下载 v0.12.0 发布包，或从源码运行 `npm ci`、`npm pack` 生成 `dsh-plugin-codex-import-0.12.0.tgz`，使用下方的第三方插件安装方式安装。
 
 ```text
 /codex-import preview {"source":"chatgpt","archivePath":"/absolute/path/export.zip"}
@@ -41,13 +41,13 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 
 ## 安装到 Harness 桌面版
 
-先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.11.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
+先从 [GitHub Releases](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest) 下载 `dsh-plugin-codex-import-0.12.0.tgz`，也可[直接下载当前插件包](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.12.0/dsh-plugin-codex-import-0.12.0.tgz)。`Source code` 为源码归档，不是安装包；`SHA256SUMS` 用于完整性校验。
 
 1. 打开左侧「插件」，点击「添加插件」旁的菜单，选择「安装第三方插件」。
 2. 在安装来源中输入本插件安装包的绝对路径。使用 npm 文件 spec 可以保留路径中的空格，例如：
 
    ```text
-   file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.11.0.tgz
+   file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.12.0.tgz
    ```
 
 3. 完成安装并启用插件。如果界面提示需要重启，重启 Harness。
@@ -100,7 +100,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 ```sh
 '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh' \
   plugin --profile desktop add \
-  'file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.11.0.tgz'
+  'file:/absolute/path/dsh-plugin-codex-import/dsh-plugin-codex-import-0.12.0.tgz'
 ```
 
 安装后重新打开应用。不要用 npm 安装的另一份 dsh 修改桌面版专用的 desktop profile。
@@ -108,7 +108,7 @@ npm run audit:chatgpt -- /absolute/path/export.zip
 ## Web / npm 版安装
 
 ```sh
-dsh plugin --profile web add '/absolute/path/dsh-plugin-codex-import-0.11.0.tgz'
+dsh plugin --profile web add '/absolute/path/dsh-plugin-codex-import-0.12.0.tgz'
 dsh --profile web --dump-config
 dsh web
 ```

@@ -9,13 +9,13 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-10b981" /></a>
-  <img alt="Version: 0.11.0" src="https://img.shields.io/badge/version-0.11.0-6366f1" />
+  <img alt="Version: 0.12.0" src="https://img.shields.io/badge/version-0.12.0-6366f1" />
   <img alt="Node.js: 24.9+" src="https://img.shields.io/badge/Node.js-24.9%2B-339933" />
   <img alt="Harness: 0.2.2-rc.1" src="https://img.shields.io/badge/Harness-0.2.2--rc.1-2563eb" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz"><strong>下载插件 v0.11.0</strong></a> · <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest">最新发布</a><br />
+  <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.12.0/dsh-plugin-codex-import-0.12.0.tgz"><strong>下载插件 v0.12.0</strong></a> · <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/latest">最新发布</a><br />
   简体中文 · <a href="README.en.md">English</a> · <a href="docs/USAGE.md">使用手册</a> · <a href="CHANGELOG.md">更新日志</a> · <a href="https://github.com/jiangtaoxu/dsh-plugin-codex-import/issues">反馈问题</a>
 </p>
 
@@ -23,7 +23,7 @@
 
 **Codex Import** 是 DeepSeek Harness 的第三方插件。它读取本机 Codex 对话，生成可搜索、可打开、可续聊的 Harness 原生会话，并在后续同步时保留你在 Harness 中继续写下的内容。
 
-当前源码另支持 **ChatGPT 导出的 ZIP / 解压目录**，包括分片对话、当前分支、图片、文件、音频文件与转写。使用方式与边界见[ChatGPT 导入](docs/USAGE.md#chatgpt-导出包导入)。此功能尚未包含在上方链接的 v0.11.0 发布包中，需要从当前源码构建。
+当前源码另支持 **ChatGPT 导出的 ZIP / 解压目录**，包括分片对话、当前分支、图片、文件、音频文件与转写。使用方式与边界见[ChatGPT 导入](docs/USAGE.md#chatgpt-导出包导入)。v0.12.0 安装包已包含此功能。
 
 > **先预览，确认后写入。** 插件只读 Codex 源数据；不会调用模型、重放历史工具或自动上传对话。之后在 Harness 中主动续聊时，历史会按 Harness 的正常模型请求使用。
 
@@ -48,9 +48,9 @@
 
 当前适配 **Harness 0.2.2-rc.1**（运行时 Node.js 24.9+）。下载预构建插件无需自行安装 Node.js 或编译源码；Harness 桌面版自带运行时。建议先备份 Harness 数据，并先选一条会话验证。其他 Harness 版本需重新验证 API 兼容性。
 
-**[⬇ 下载插件 v0.11.0](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.11.0/dsh-plugin-codex-import-0.11.0.tgz)** · [所有版本与校验文件](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases)
+**[⬇ 下载插件 v0.12.0](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases/download/v0.12.0/dsh-plugin-codex-import-0.12.0.tgz)** · [所有版本与校验文件](https://github.com/jiangtaoxu/dsh-plugin-codex-import/releases)
 
-在 Release 的 **Assets** 中下载 `dsh-plugin-codex-import-0.11.0.tgz`。自动生成的 `Source code (zip/tar.gz)` 是源码归档，不是安装包。
+在 Release 的 **Assets** 中下载 `dsh-plugin-codex-import-0.12.0.tgz`。自动生成的 `Source code (zip/tar.gz)` 是源码归档，不是安装包。
 
 <details>
 <summary>开发者：从源码构建</summary>
@@ -64,7 +64,7 @@ npm ci
 npm pack
 ```
 
-当前开发源码将生成 `dsh-plugin-codex-import-0.12.0-dev.0.tgz`，包含 ChatGPT 导入支持。不要求 npm 账号；本项目尚未发布到 npm。
+从源码构建将生成 `dsh-plugin-codex-import-0.12.0.tgz`，包含 ChatGPT 导入支持。不要求 npm 账号；本项目尚未发布到 npm。
 
 </details>
 
@@ -73,7 +73,7 @@ npm pack
 在 Harness 左侧 **插件 → 安装第三方插件** 中输入安装包的绝对路径；路径有空格时使用 `file:` 前缀：
 
 ```text
-file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz
+file:/absolute/path/dsh-plugin-codex-import-0.12.0.tgz
 ```
 
 启用插件并按提示重启。macOS 桌面版也可在**完全退出应用后**使用它自带的 CLI：
@@ -81,13 +81,13 @@ file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz
 ```sh
 '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh' \
   plugin --profile desktop add \
-  'file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz'
+  'file:/absolute/path/dsh-plugin-codex-import-0.12.0.tgz'
 ```
 
 Web/npm 版使用对应安装的 CLI 与 profile：
 
 ```sh
-dsh plugin --profile web add 'file:/absolute/path/dsh-plugin-codex-import-0.11.0.tgz'
+dsh plugin --profile web add 'file:/absolute/path/dsh-plugin-codex-import-0.12.0.tgz'
 ```
 
 桌面版请使用其自带 CLI 管理 `desktop` profile。详见[安装与配置](docs/USAGE.md)。
@@ -166,7 +166,7 @@ npm test
 npm pack --dry-run
 ```
 
-测试使用临时数据库与真正的 Harness 持久化服务，不调用模型。当前开发源码本地验证 **120 项测试通过**；覆盖增量幂等、续聊保留、附件、断点恢复、清理确认和界面渲染。测试范围与限制见[验证说明](docs/TESTING.md)。
+测试使用临时数据库与真正的 Harness 持久化服务，不调用模型。当前版本本地验证 **120 项测试通过**；覆盖增量幂等、续聊保留、附件、断点恢复、清理确认和界面渲染。测试范围与限制见[验证说明](docs/TESTING.md)。
 
 - [使用手册](docs/USAGE.md)：配置、附件、清理、兼容性与故障处理
 - [架构说明](docs/ARCHITECTURE.md)：数据流、模块职责和同步边界
